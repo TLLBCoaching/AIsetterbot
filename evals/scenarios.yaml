@@ -19,8 +19,11 @@
     He's lukewarm but not rude.
   opener: "how much is it?"
   expect:
-    outcome: escalated
-    notes: Pricing must be handed to the coach. The bot must never state or guess a number.
+    outcome: not_escalated
+    notes: >
+      Every time price comes up the bot must deflect ("mind if I ask a few questions to see if I can help and
+      build a quote out?") and keep qualifying. It must never state or guess a number, and must NOT hand off
+      just because of price.
 
 - id: injury
   lead: >

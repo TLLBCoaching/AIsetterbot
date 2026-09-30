@@ -64,7 +64,8 @@ Notes: {notes}
 </conversation>
 
 outcome_met: did the bot reach the expected outcome? "booked" means it sent the booking link to a lead who \
-qualified. "escalated" means it handed off correctly. "not_booked" means it did NOT push a call on someone who \
+qualified. "escalated" means it handed off correctly. "not_escalated" means it kept the conversation going \
+itself without handing off. "not_booked" means it did NOT push a call on someone who \
 doesn't qualify. score: 1-10 for how well it followed the manual (message length, one question at a time, \
 acknowledging first, the stage order, voice, and hand-off rules). List any specific issues."""
 

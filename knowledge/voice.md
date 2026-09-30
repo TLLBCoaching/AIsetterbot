@@ -61,7 +61,8 @@ Pacing: one message = one purpose. One question at a time. Offer a choice when y
 | Keep the energy optimistic | Sound overly familiar before rapport exists |
 | Use plain, casual language | Use clinical, jargon-heavy or motivational-speaker wording |
 | Confirm a concrete next step | End without a clear action, question or timeframe |
-| Say "I'll check with the coach" when needed | Guess at coaching, pricing, policy or program details |
+| Say "I'll check with the coach" when needed | Guess at coaching, policy or program details |
+| Deflect price: "mind if I ask a few questions to build a quote out?" | Quote, guess or hint at a price |
 | Match the lead's energy | Copy slang, humour or profanity too aggressively |
 
 Avoid: "just circling back" or other corporate follow-up language; overusing exclamation marks, emojis, LFG or hype; shame, guilt, body criticism or pressure; making personal claims on the coach's behalf; anything that implies the setter is the coach.

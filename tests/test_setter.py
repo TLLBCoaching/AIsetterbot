@@ -153,8 +153,8 @@ def test_engine_replies_and_records_bot_messages():
 
 
 def test_engine_escalation_tags_and_pauses():
-    ghl = FakeGHL([{"id": "1", "direction": "inbound", "body": "how much is it"}])
-    eng = _engine(ghl, Decision(["Good question mate. I'll check that with the coach."], "escalate", "goal", "pricing", LEAD))
+    ghl = FakeGHL([{"id": "1", "direction": "inbound", "body": "i want a refund"}])
+    eng = _engine(ghl, Decision(["Thanks for letting me know. I'll bring that to the coach."], "escalate", "goal", "refund request", LEAD))
     asyncio.run(eng.handle("c1"))
     assert settings.tag_needs_human in ghl.added_tags
     assert eng.store.get_lead("c1")["paused"]
@@ -181,3 +181,9 @@ def test_engine_skips_when_last_message_is_ours():
     eng = _engine(ghl, Decision(["x"], "reply", "opener"), human_takeover_minutes=0)
     eng.store.record_bot_message("c1", "2")
     assert asyncio.run(eng.handle("c1")) is None
+
+
+def test_price_deflection_rule_in_prompt():
+    text = build_system_prompt()[0]["text"]
+    assert "build a quote out" in text
+    assert "never escalate just because of price" in text

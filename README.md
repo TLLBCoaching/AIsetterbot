@@ -65,7 +65,8 @@ python -m evals.run         # simulated leads, graded against the manual → eva
 | Hand-offs | The bot tags `setter-needs-human`, sends a hand-off line, and stops. Build a GHL workflow on that tag to notify you. Remove the tag and `POST /leads/{id}/resume` to hand back |
 | Other tags | `setter-link-sent` when the booking link goes out, `setter-disqualified` |
 
-The bot always hands off for pricing, coaching, nutrition or medical advice, injuries, mental health or
+It never quotes a price: it deflects with "mind if I ask a few questions to build a quote out?" and keeps
+qualifying. The bot always hands off for coaching, nutrition or medical advice, injuries, mental health or
 distress, complaints, refunds, under-18s, and "am I talking to a bot?". It never claims to be the coach.
 
 ## Still to do
