@@ -37,6 +37,12 @@ class HQSettings:
     # Finances: a Stripe restricted key with read access to balance, charges, refunds and subscriptions.
     stripe_key: str = os.environ.get("STRIPE_API_KEY", "")
 
+    # To-dos: an Asana personal access token moves your to-dos into Asana (your My Tasks).
+    # Asana → profile photo → Settings → Apps → Developer apps → Personal access tokens.
+    asana_token: str = os.environ.get("ASANA_TOKEN", "")
+    asana_workspace: str = os.environ.get("ASANA_WORKSPACE_GID", "")  # defaults to your first workspace
+    asana_project: str = os.environ.get("ASANA_PROJECT_GID", "")  # optional: also add new tasks to this project
+
     db_path: Path = field(default_factory=lambda: Path(os.environ.get("HQ_DB", str(ROOT / "data" / "hq.db"))))
 
     @property

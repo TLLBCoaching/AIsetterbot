@@ -18,6 +18,11 @@ CREATE TABLE IF NOT EXISTS todos (
     created_at TEXT NOT NULL,
     done_at TEXT
 );
+CREATE TABLE IF NOT EXISTS todo_flags (  -- star and area for to-dos that live in Asana
+    task_id TEXT PRIMARY KEY,
+    priority INTEGER NOT NULL DEFAULT 0,
+    area TEXT NOT NULL DEFAULT ''
+);
 CREATE TABLE IF NOT EXISTS money (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,               -- YYYY-MM-DD
@@ -112,6 +117,23 @@ class HQStore:
 
     def delete_todo(self, todo_id: int) -> None:
         self._write("DELETE FROM todos WHERE id = ?", (todo_id,))
+
+    def todo_flags(self, task_id: str) -> dict:
+        rows = self._rows("SELECT priority, area FROM todo_flags WHERE task_id = ?", (task_id,))
+        return rows[0] if rows else {}
+
+    def set_todo_flags(self, task_id: str, priority: int | None = None, area: str | None = None) -> None:
+        current = self.todo_flags(task_id)
+        priority = current.get("priority", 0) if priority is None else int(priority)
+        area = current.get("area", "") if area is None else area
+        self._write(
+            "INSERT INTO todo_flags (task_id, priority, area) VALUES (?, ?, ?) "
+            "ON CONFLICT(task_id) DO UPDATE SET priority = excluded.priority, area = excluded.area",
+            (task_id, priority, area),
+        )
+
+    def clear_todo_flags(self, task_id: str) -> None:
+        self._write("DELETE FROM todo_flags WHERE task_id = ?", (task_id,))
 
     # Money log
 

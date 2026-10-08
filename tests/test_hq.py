@@ -121,6 +121,8 @@ def test_session_tokens():
 @pytest.fixture
 def client():
     server.store = HQStore(":memory:")
+    server.todos = server.todo_backend(server.store)
+    server._assistant = None
     server._failures.clear()
     return TestClient(server.app)
 
@@ -142,6 +144,7 @@ def test_todo_and_money_flow(client):
     todo = client.post("/api/todos", json={"title": "Film reel", "due": "2026-10-08"}).json()
     assert client.patch(f"/api/todos/{todo['id']}", json={"done": True}).json()["done"] is True
     assert client.get("/api/todos").json() == []
+    assert client.patch("/api/todos/abc", json={"done": True}).status_code == 422
     assert client.post("/api/todos", json={"title": "x", "due": "tomorrow"}).status_code == 422
 
     client.post("/api/money", json={"amount": -49.5, "category": "Software", "note": "Canva"})
@@ -219,3 +222,87 @@ def test_assistant_runs_tools_and_keeps_an_append_only_transcript(store):
     assert calls[1]["messages"][:1] == calls[0]["messages"]
     assert [m["role"] for m in calls[1]["messages"]] == ["user", "assistant", "user"]
     assert calls[1]["messages"][2]["content"][0]["tool_use_id"] == "t1"
+
+
+def _fake_asana():
+    """A tiny in-memory Asana API."""
+    import json as _json
+
+    import httpx
+
+    tasks = {
+        "111": {"gid": "111", "name": "Weekly check ins", "notes": "", "due_on": "2026-09-25", "completed": False,
+                "permalink_url": "https://app.asana.com/1/w/task/111", "projects": []},
+        "222": {"gid": "222", "name": "Social proof", "notes": "", "due_on": None, "completed": False,
+                "permalink_url": "https://app.asana.com/1/w/task/222", "projects": [{"gid": "p", "name": "Content"}]},
+    }
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        assert request.headers["authorization"] == "Bearer pat"
+        path = request.url.path.removeprefix("/api/1.0")
+        if path == "/users/me":
+            return httpx.Response(200, json={"data": {"workspaces": [{"gid": "ws1"}]}})
+        if path == "/tasks" and request.method == "GET":
+            assert request.url.params["workspace"] == "ws1" and request.url.params["assignee"] == "me"
+            done_too = request.url.params["completed_since"] != "now"
+            return httpx.Response(200, json={"data": [t for t in tasks.values() if done_too or not t["completed"]],
+                                             "next_page": None})
+        if path == "/tasks" and request.method == "POST":
+            data = _json.loads(request.content)["data"]
+            task = {"gid": "333", "name": data["name"], "notes": data["notes"], "due_on": data.get("due_on"),
+                    "completed": False, "permalink_url": "https://app.asana.com/1/w/task/333", "projects": []}
+            tasks["333"] = task
+            return httpx.Response(201, json={"data": task})
+        gid = path.removeprefix("/tasks/")
+        if gid not in tasks:
+            return httpx.Response(404, json={"errors": [{"message": "not found"}]})
+        if request.method == "PUT":
+            data = _json.loads(request.content)["data"]
+            if "name" in data:
+                tasks[gid]["name"] = data["name"]
+            if "due_on" in data:
+                tasks[gid]["due_on"] = data["due_on"]
+            if "completed" in data:
+                tasks[gid]["completed"] = data["completed"]
+        if request.method == "DELETE":
+            tasks.pop(gid)
+            return httpx.Response(200, json={"data": {}})
+        return httpx.Response(200, json={"data": tasks[gid]})
+
+    return tasks, seen, httpx.MockTransport(handler)
+
+
+def test_asana_todos_round_trip(store):
+    import asyncio
+
+    from hq.todos import AsanaTodos
+
+    tasks, seen, transport = _fake_asana()
+    asana = AsanaTodos(store, "pat", transport=transport)
+
+    async def run():
+        listed = await asana.list()
+        assert [t["title"] for t in listed] == ["Weekly check ins", "Social proof"]  # dated first
+        assert listed[1]["area"] == "Content" and listed[1]["url"].startswith("https://app.asana.com/")
+
+        added = await asana.add("Call Jake", due="2026-10-09", area="clients", priority=1)
+        assert tasks["333"]["due_on"] == "2026-10-09"
+        assert added["priority"] == 1 and added["area"] == "clients"  # kept locally, Asana has no star
+
+        await asana.update("111", done=True)
+        assert tasks["111"]["completed"] is True
+        assert [t["id"] for t in await asana.list()] == ["333", "222"]
+        assert "111" in [t["id"] for t in await asana.list(include_done=True)]
+
+        star_only = await asana.update("222", priority=1)
+        assert star_only["priority"] == 1 and not any(r.method == "PUT" and r.url.path.endswith("/222") for r in seen)
+
+        assert await asana.update("999", done=True) is None
+        await asana.delete("333")
+        assert "333" not in tasks and store.todo_flags("333") == {}
+
+    asyncio.run(run())
+    # The workspace is looked up once, then reused.
+    assert sum(r.url.path.endswith("/users/me") for r in seen) == 1

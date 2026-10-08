@@ -14,6 +14,7 @@ from pathlib import Path
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Path as PathParam
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -23,6 +24,7 @@ from .assistant import Assistant
 from .clients import InboxClient, draft_reply, render_messages
 from .config import hq_settings
 from .store import HQStore
+from .todos import todo_backend
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("hq")
@@ -32,6 +34,7 @@ COOKIE = "hq_session"
 
 app = FastAPI(title="HQ", docs_url=None, redoc_url=None, openapi_url=None)
 store = HQStore(hq_settings.db_path)
+todos = todo_backend(store)
 _assistant: Assistant | None = None
 _chat_lock = asyncio.Lock()
 
@@ -39,7 +42,7 @@ _chat_lock = asyncio.Lock()
 def assistant() -> Assistant:
     global _assistant
     if _assistant is None:
-        _assistant = Assistant(store)
+        _assistant = Assistant(store, todos=todos)
     return _assistant
 
 
@@ -118,6 +121,7 @@ async def me() -> dict:
             "calendar": bool(hq_settings.calendar_urls),
             "inbox": hq_settings.ghl_configured,
             "stripe": bool(hq_settings.stripe_key),
+            "asana": todos.source == "asana",
         },
     }
 
@@ -131,23 +135,31 @@ def _today() -> date:
 @app.get("/api/today", dependencies=[Depends(require_login)])
 async def today_view() -> dict:
     today = _today()
-    events, stripe, unread = await asyncio.gather(
+    events, stripe, unread, open_todos = await asyncio.gather(
         calendar.get_events(*calendar.day_bounds(today, 2)),
         finance.stripe_summary(today),
         _unread_conversations(),
+        _open_todos(),
     )
-    todos = store.list_todos()
     iso = today.isoformat()
     return {
         "date": iso,
         "events": events,
-        "todos_due": [t for t in todos if t["due"] and t["due"] <= iso],
-        "todos_important": [t for t in todos if t["priority"] and not (t["due"] and t["due"] <= iso)][:5],
-        "open_todos": len(todos),
+        "todos_due": [t for t in open_todos if t["due"] and t["due"] <= iso],
+        "todos_important": [t for t in open_todos if t["priority"] and not (t["due"] and t["due"] <= iso)][:5],
+        "open_todos": len(open_todos),
         "unread": unread,
         "drafts": store.list_drafts(),
         "money": {k: stripe.get(k) for k in ("configured", "this_week", "this_month", "error", "failed")},
     }
+
+
+async def _open_todos() -> list[dict]:
+    try:
+        return await todos.list()
+    except httpx.HTTPError as exc:
+        log.error("To-do source failed: %s", type(exc).__name__)
+        return []
 
 
 async def _unread_conversations() -> dict:
@@ -193,27 +205,48 @@ class TodoPatch(BaseModel):
     done: bool | None = None
 
 
+TODO_ID = r"^[0-9]{1,30}$"
+
+
+def _todo_error(exc: httpx.HTTPError) -> HTTPException:
+    log.error("To-do source failed: %s", type(exc).__name__)
+    where = "Asana" if todos.source == "asana" else "the to-do list"
+    return HTTPException(502, f"Couldn't reach {where}. Try again.")
+
+
 @app.get("/api/todos", dependencies=[Depends(require_login)])
 async def list_todos(include_done: bool = False) -> list[dict]:
-    return store.list_todos(include_done=include_done)
+    try:
+        return await todos.list(include_done=include_done)
+    except httpx.HTTPError as exc:
+        raise _todo_error(exc)
 
 
 @app.post("/api/todos", dependencies=[Depends(require_login)])
 async def add_todo(body: TodoIn) -> dict:
-    return store.add_todo(body.title, body.notes, body.due, body.area, body.priority)
+    try:
+        return await todos.add(body.title, body.notes, body.due, body.area, body.priority)
+    except httpx.HTTPError as exc:
+        raise _todo_error(exc)
 
 
 @app.patch("/api/todos/{todo_id}", dependencies=[Depends(require_login)])
-async def update_todo(todo_id: int, body: TodoPatch) -> dict:
-    todo = store.update_todo(todo_id, **body.model_dump(exclude_unset=True))
+async def update_todo(body: TodoPatch, todo_id: str = PathParam(pattern=TODO_ID)) -> dict:
+    try:
+        todo = await todos.update(todo_id, **body.model_dump(exclude_unset=True))
+    except httpx.HTTPError as exc:
+        raise _todo_error(exc)
     if not todo:
         raise HTTPException(404, "No such to-do")
     return todo
 
 
 @app.delete("/api/todos/{todo_id}", dependencies=[Depends(require_login)])
-async def delete_todo(todo_id: int) -> dict:
-    store.delete_todo(todo_id)
+async def delete_todo(todo_id: str = PathParam(pattern=TODO_ID)) -> dict:
+    try:
+        await todos.delete(todo_id)
+    except httpx.HTTPError as exc:
+        raise _todo_error(exc)
     return {"ok": True}
 
 

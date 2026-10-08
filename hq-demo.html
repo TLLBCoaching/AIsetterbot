@@ -247,6 +247,7 @@ details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
     { id: 4, title: "Review ad spend", notes: "", due: day(4), area: "business", priority: 0, done: false },
     { id: 5, title: "Book physio", notes: "", due: null, area: "health", priority: 0, done: false },
   ];
+  todos.forEach((t) => (t.url = "https://app.asana.com/"));
   let money = [
     { id: 1, date: day(-1), amount: -89, category: "software", note: "GoHighLevel" },
     { id: 2, date: day(-3), amount: -450, category: "ads", note: "Meta" },
@@ -293,7 +294,7 @@ details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
     const path = u.pathname, method = (opts.method || "GET").toUpperCase();
     const body = opts.body ? JSON.parse(opts.body) : {};
     let m;
-    if (path === "/api/me") return json({ ok: true, timezone: TZ, currency: "AUD", connected: { calendar: true, inbox: true, stripe: true } });
+    if (path === "/api/me") return json({ ok: true, timezone: TZ, currency: "AUD", connected: { calendar: true, inbox: true, stripe: true, asana: true } });
     if (path === "/api/login" || path === "/api/logout") return json({ ok: true });
     if (path === "/api/today") {
       const t = day(0), open = sortTodos(todos.filter((x) => !x.done));
@@ -468,11 +469,12 @@ function todoItem(t, onChange) {
     }),
     h("div", { class: "grow" },
       h("div", { class: "title" + (t.done ? " done-text" : "") }, t.priority ? "★ " : "", t.title),
-      h("div", { class: "meta" }, due, " ", t.area, t.notes ? ` · ${t.notes}` : ""),
+      h("div", { class: "meta" }, due, " ", t.area, t.notes ? ` · ${t.notes}` : "",
+        t.url && t.url.startsWith("https://app.asana.com/") ? [" · ", h("a", { href: t.url, target: "_blank", rel: "noopener", class: "link-btn small" }, "Asana ↗")] : null),
     ),
     h("button", {
       class: "icon-btn small", "aria-label": "Delete",
-      onclick: async () => { if (confirm(`Delete "${t.title}"?`)) { await api(`/api/todos/${t.id}`, { method: "DELETE" }); onChange(); } },
+      onclick: async () => { if (confirm(`Delete "${t.title}"${t.url ? " from Asana" : ""}?`)) { await api(`/api/todos/${t.id}`, { method: "DELETE" }); onChange(); } },
     }, "×"),
   );
 }
@@ -607,6 +609,8 @@ views.todos = async () => {
       h("button", { class: "primary", type: "submit", style: "flex:0 0 auto" }, "Add to-do"))),
     h("div", { class: "segmented" },
       ["open", "done"].map((f) => h("button", { class: todoFilter === f ? "active" : "", onclick: () => { todoFilter = f; render(); } }, f === "open" ? "Open" : "Done"))),
+    me.connected.asana ? h("p", { class: "muted small", style: "margin:-4px 0 10px" },
+      todoFilter === "done" ? "Completed in Asana in the last 14 days." : "Synced with your Asana My Tasks. Changes here happen in Asana too.") : null,
     groups.filter(([, items]) => items.length).map(([name, items]) =>
       h("div", { class: "card" }, h("h2", {}, name, " ", h("span", { class: "count" }, items.length)), h("ul", { class: "list" }, items.map((t) => todoItem(t, render))))),
     shown.length ? null : h("div", { class: "empty" }, todoFilter === "done" ? "Nothing completed yet." : "All clear."),

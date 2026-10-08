@@ -112,11 +112,12 @@ function todoItem(t, onChange) {
     }),
     h("div", { class: "grow" },
       h("div", { class: "title" + (t.done ? " done-text" : "") }, t.priority ? "★ " : "", t.title),
-      h("div", { class: "meta" }, due, " ", t.area, t.notes ? ` · ${t.notes}` : ""),
+      h("div", { class: "meta" }, due, " ", t.area, t.notes ? ` · ${t.notes}` : "",
+        t.url && t.url.startsWith("https://app.asana.com/") ? [" · ", h("a", { href: t.url, target: "_blank", rel: "noopener", class: "link-btn small" }, "Asana ↗")] : null),
     ),
     h("button", {
       class: "icon-btn small", "aria-label": "Delete",
-      onclick: async () => { if (confirm(`Delete "${t.title}"?`)) { await api(`/api/todos/${t.id}`, { method: "DELETE" }); onChange(); } },
+      onclick: async () => { if (confirm(`Delete "${t.title}"${t.url ? " from Asana" : ""}?`)) { await api(`/api/todos/${t.id}`, { method: "DELETE" }); onChange(); } },
     }, "×"),
   );
 }
@@ -251,6 +252,8 @@ views.todos = async () => {
       h("button", { class: "primary", type: "submit", style: "flex:0 0 auto" }, "Add to-do"))),
     h("div", { class: "segmented" },
       ["open", "done"].map((f) => h("button", { class: todoFilter === f ? "active" : "", onclick: () => { todoFilter = f; render(); } }, f === "open" ? "Open" : "Done"))),
+    me.connected.asana ? h("p", { class: "muted small", style: "margin:-4px 0 10px" },
+      todoFilter === "done" ? "Completed in Asana in the last 14 days." : "Synced with your Asana My Tasks. Changes here happen in Asana too.") : null,
     groups.filter(([, items]) => items.length).map(([name, items]) =>
       h("div", { class: "card" }, h("h2", {}, name, " ", h("span", { class: "count" }, items.length)), h("ul", { class: "list" }, items.map((t) => todoItem(t, render))))),
     shown.length ? null : h("div", { class: "empty" }, todoFilter === "done" ? "Nothing completed yet." : "All clear."),

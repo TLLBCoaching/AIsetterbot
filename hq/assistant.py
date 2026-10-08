@@ -14,6 +14,7 @@ from . import calendar, finance
 from .clients import InboxClient, draft_reply, render_messages
 from .config import hq_settings
 from .store import HQStore
+from .todos import LocalTodos
 
 log = logging.getLogger(__name__)
 
@@ -21,7 +22,8 @@ MAX_TOOL_ROUNDS = 12
 
 SYSTEM = """\
 You're Alistair's personal assistant inside HQ, the private app he uses to run his life and his online \
-coaching business, The Lean Lifestyle Blueprint (TLLB). You can see his calendar, to-do list, client inbox \
+coaching business, The Lean Lifestyle Blueprint (TLLB). You can see his calendar, to-do list (synced with \
+his Asana My Tasks when Asana is connected), client inbox \
 (GoHighLevel conversations) and finances (Stripe plus a manual money log), and you have tools for each.
 
 How to work:
@@ -68,7 +70,7 @@ TOOLS = [
         "notes": {"type": "string"},
     }, ["title"]),
     _tool("update_todo", "Complete, reopen, rename or reschedule a to-do by id.", {
-        "id": {"type": "integer"},
+        "id": {"type": "string", "description": "The to-do's id from list_todos."},
         "done": {"type": "boolean"},
         "title": {"type": "string"},
         "due": {"type": "string", "description": "YYYY-MM-DD, or an empty string to clear it."},
@@ -107,8 +109,9 @@ def clean_assistant_content(blocks: list[dict]) -> list[dict]:
 
 
 class Assistant:
-    def __init__(self, store: HQStore, client: anthropic.AsyncAnthropic | None = None):
+    def __init__(self, store: HQStore, client: anthropic.AsyncAnthropic | None = None, todos=None):
         self.store = store
+        self.todos = todos or LocalTodos(store)
         self.client = client or anthropic.AsyncAnthropic()
 
     def _today(self) -> date:
@@ -121,9 +124,9 @@ class Assistant:
             days = max(1, min(int(args.get("days") or 1), 31))
             return await calendar.get_events(*calendar.day_bounds(start, days))
         if name == "list_todos":
-            return self.store.list_todos(include_done=bool(args.get("include_done")))
+            return await self.todos.list(include_done=bool(args.get("include_done")))
         if name == "add_todo":
-            return self.store.add_todo(
+            return await self.todos.add(
                 args["title"], notes=args.get("notes", ""), due=args.get("due"),
                 area=args.get("area") or "business", priority=1 if args.get("important") else 0,
             )
@@ -131,7 +134,7 @@ class Assistant:
             changes = {k: args[k] for k in ("done", "title", "due", "notes") if k in args}
             if "important" in args:
                 changes["priority"] = 1 if args["important"] else 0
-            todo = self.store.update_todo(int(args["id"]), **changes)
+            todo = await self.todos.update(str(args["id"]), **changes)
             return todo or {"error": f"No to-do with id {args['id']}"}
         if name in ("list_conversations", "read_conversation", "draft_client_reply"):
             return await self._inbox_tool(name, args)
