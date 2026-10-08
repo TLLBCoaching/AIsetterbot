@@ -76,6 +76,42 @@ distress, complaints, refunds, under-18s, and "am I talking to a bot?". It never
 - Automated follow-ups when a lead goes quiet aren't built yet. Instagram only allows replies within 24
   hours of the lead's last message, so they would need to be scheduled inside that window.
 
+## HQ: your personal dashboard
+
+`hq/` is a private web app for running your day from your phone: calendar, to-dos, client replies, money,
+and a Claude assistant that can work across all of them.
+
+| Tab | What it does | Source |
+|---|---|---|
+| Today | Today's schedule, what's due, unread messages, reply drafts, cash collected this week, failed payments | All of the below |
+| Calendar | Week view, recurring events expanded | Google Calendar private iCal links (read-only) |
+| To-dos | Add, complete, reschedule, star; grouped Overdue / Today / Upcoming / Someday | Stored in HQ |
+| Clients | Your GoHighLevel conversations (Instagram, SMS, Facebook, WhatsApp, live chat). Read the thread, get Claude to draft a reply in your voice, edit it, send it | GoHighLevel, same token as the setter |
+| Money | Stripe cash collected this week and month, a 12-week trend, balance, active subscriptions, failed payments, plus a manual log for personal and other spending | Stripe (read-only key) + stored in HQ |
+| Ask | Chat with Claude: "what's my day look like", "who do I need to reply to", "add call Jake tomorrow", "how's revenue vs last month", "draft a reply to Sarah about weekends" | Everything above |
+
+Nothing goes to a client or lead without you. The assistant can only save **drafts**. Sending happens
+only when you press Send in the Clients tab and confirm.
+
+**Run it**
+
+```bash
+pip install -r requirements.txt
+# in .env: HQ_PASSWORD, HQ_SECRET_KEY, plus HQ_CALENDAR_ICS_URLS and STRIPE_API_KEY (see .env.example)
+uvicorn hq.server:app --host 0.0.0.0 --port 8100
+```
+
+Deploy it like the setter (Railway, Render, Fly.io, a VPS) behind HTTPS, with `data/` on persistent storage.
+On your phone, open the URL and choose **Add to Home Screen** so it opens like an app. Each section shows a
+"not connected" note until its keys are set, so you can switch things on one at a time.
+
+Security: one password, a signed session cookie (30 days, HTTP-only, HTTPS-only), and a 15-minute lockout
+after 5 wrong passwords. HQ refuses to serve anything until `HQ_PASSWORD` and `HQ_SECRET_KEY` are set.
+Changing the password signs every device out. Treat your iCal links and the Stripe key like passwords.
+
+Not in v1: creating calendar events (needs Google OAuth), replying to email threads, and bank feeds for
+personal finances (the money log is manual).
+
 ## Layout
 ```
 setter/brain.py      Claude call, operating rules, output schema, booking-link handling
@@ -86,4 +122,6 @@ setter/store.py      SQLite: per-lead stage/notes, bot message IDs, decision log
 setter/simulate.py   terminal chat
 scripts/train.py     learn from your DM exports
 evals/               simulated-lead test suite
+hq/                  personal dashboard: server.py (API + login), assistant.py (Claude + tools),
+                     calendar.py, finance.py, clients.py, store.py, static/ (the app)
 ```

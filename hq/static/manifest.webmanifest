@@ -1,0 +1,12 @@
+{
+  "name": "HQ",
+  "short_name": "HQ",
+  "description": "Your day, clients and money in one place.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f5",
+  "theme_color": "#14532d",
+  "icons": [
+    { "src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
