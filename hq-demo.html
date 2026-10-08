@@ -220,6 +220,11 @@ details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
   <script>
 // Demo mode: answers the app's API calls in the browser with made-up data. Nothing leaves this page.
 (function () {
+  // Embedded viewers can block confirm() (it returns false instantly) and pushState; keep the demo usable there.
+  const nativeConfirm = window.confirm.bind(window);
+  window.confirm = (msg) => { const t = Date.now(); let ok = false; try { ok = nativeConfirm(msg); } catch (e) {} return ok || Date.now() - t < 30; };
+  const nativePush = history.pushState.bind(history);
+  history.pushState = (...args) => { try { nativePush(...args); } catch (e) {} };
   const TZ = "Australia/Sydney";
   const day = (n = 0) => { const d = new Date(Date.now() + n * 86400000); return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d); };
   const off = (() => { const p = new Intl.DateTimeFormat("en-US", { timeZone: TZ, timeZoneName: "longOffset" }).formatToParts(new Date()).find((x) => x.type === "timeZoneName").value; return p.replace("GMT", "") || "+00:00"; })();
