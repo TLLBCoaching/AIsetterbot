@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14532d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="HQ">
+  <meta name="robots" content="noindex, nofollow">
+  <title>HQ Demo</title>
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExMiIgZmlsbD0iIzE1ODAzZCIvPgogIDx0ZXh0IHg9IjI1NiIgeT0iMzE4IiBmb250LWZhbWlseT0iLWFwcGxlLXN5c3RlbSwgU2Vnb2UgVUksIFJvYm90bywgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMTAiIGZvbnQtd2VpZ2h0PSI4MDAiIGZpbGw9IiNmZmZmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkhRPC90ZXh0Pgo8L3N2Zz4K" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExMiIgZmlsbD0iIzE1ODAzZCIvPgogIDx0ZXh0IHg9IjI1NiIgeT0iMzE4IiBmb250LWZhbWlseT0iLWFwcGxlLXN5c3RlbSwgU2Vnb2UgVUksIFJvYm90bywgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMTAiIGZvbnQtd2VpZ2h0PSI4MDAiIGZpbGw9IiNmZmZmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkhRPC90ZXh0Pgo8L3N2Zz4K">
+  <style>
+:root {
+  --bg: #f6f7f5;
+  --card: #ffffff;
+  --text: #17201a;
+  --muted: #66706a;
+  --line: #e3e6e2;
+  --accent: #15803d;
+  --accent-soft: #e5f4ea;
+  --warn: #b45309;
+  --warn-soft: #fdf1e2;
+  --bad: #b91c1c;
+  --bad-soft: #fde8e8;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .05);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1411;
+    --card: #182019;
+    --text: #e7ece8;
+    --muted: #94a098;
+    --line: #2a332c;
+    --accent: #4ade80;
+    --accent-soft: #1a3323;
+    --warn: #fbbf24;
+    --warn-soft: #362a12;
+    --bad: #f87171;
+    --bad-soft: #3a1a1a;
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1411; --card: #182019; --text: #e7ece8; --muted: #94a098; --line: #2a332c;
+  --accent: #4ade80; --accent-soft: #1a3323; --warn: #fbbf24; --warn-soft: #362a12;
+  --bad: #f87171; --bad-soft: #3a1a1a; --shadow: none; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+[hidden] { display: none !important; }
+button, input, textarea, select { font: inherit; color: inherit; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.topbar h1 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
+.icon-btn { border: 0; background: none; font-size: 22px; padding: 4px 8px; cursor: pointer; color: var(--muted); }
+
+.view { max-width: 760px; margin: 0 auto; padding: 14px 16px calc(env(safe-area-inset-bottom) + 90px); }
+
+.tabs {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 5;
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  background: var(--card); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tabs button {
+  border: 0; background: none; padding: 8px 0 7px; font-size: 11px; color: var(--muted);
+  display: flex; flex-direction: column; align-items: center; gap: 1px; cursor: pointer;
+}
+.tabs button span { font-size: 18px; line-height: 1.2; }
+.tabs button.active { color: var(--accent); font-weight: 600; }
+
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px; margin-bottom: 12px; box-shadow: var(--shadow);
+}
+.card h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.card h2 .count { color: var(--accent); }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.error { color: var(--bad); }
+.empty { color: var(--muted); font-size: 14px; padding: 4px 0; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.stat .label { font-size: 12px; color: var(--muted); }
+.stat .value { font-size: 22px; font-weight: 650; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.stat .sub { font-size: 12px; color: var(--muted); }
+
+.list { list-style: none; margin: 0; padding: 0; }
+.list > li { padding: 10px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: flex-start; }
+.list > li:first-child { border-top: 0; padding-top: 2px; }
+.list .grow { flex: 1; min-width: 0; }
+.list .title { font-weight: 550; overflow-wrap: anywhere; }
+.list .meta { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; min-width: 52px; }
+.clickable { cursor: pointer; }
+
+.pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-weight: 600; white-space: nowrap; }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+
+.check {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); background: none;
+  flex: none; cursor: pointer; margin-top: 1px; padding: 0;
+}
+.check.done { background: var(--accent); border-color: var(--accent); }
+.done-text { text-decoration: line-through; color: var(--muted); }
+
+input[type=text], input[type=password], input[type=number], input[type=date], textarea, select {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card);
+}
+textarea { resize: vertical; min-height: 90px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.row > * { flex: 1 1 120px; }
+.stack > * + * { margin-top: 8px; }
+
+button.primary, button.secondary, button.ghost {
+  border-radius: 10px; padding: 10px 14px; cursor: pointer; font-weight: 600; border: 1px solid transparent;
+}
+button.primary { background: var(--accent); color: #fff; }
+:root[data-theme="dark"] button.primary { color: #06210f; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button.primary { color: #06210f; } }
+button.secondary { background: var(--accent-soft); color: var(--accent); }
+button.ghost { background: none; border-color: var(--line); color: var(--muted); }
+button:disabled { opacity: .55; cursor: default; }
+.link-btn { border: 0; background: none; color: var(--accent); padding: 0; cursor: pointer; font-weight: 600; font-size: 14px; }
+
+.segmented { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.segmented button { border: 1px solid var(--line); background: var(--card); border-radius: 99px; padding: 5px 12px; font-size: 14px; cursor: pointer; }
+.segmented button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.day-head { font-size: 13px; font-weight: 700; color: var(--muted); margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .05em; }
+.day-head:first-child { margin-top: 0; }
+
+.thread { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.bubble { max-width: 85%; padding: 8px 12px; border-radius: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bubble.them { align-self: flex-start; background: var(--card); border: 1px solid var(--line); }
+.bubble.you { align-self: flex-end; background: var(--accent-soft); }
+.bubble .at { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.chat { display: flex; flex-direction: column; gap: 8px; }
+.chat .bubble.assistant { align-self: flex-start; background: var(--card); border: 1px solid var(--line); }
+.chat .bubble.user { align-self: flex-end; background: var(--accent-soft); }
+.chat-input { position: sticky; bottom: calc(env(safe-area-inset-bottom) + 64px); background: var(--bg); padding-top: 10px; }
+.chat-input textarea { min-height: 52px; }
+.suggestions { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.suggestions button { border: 1px solid var(--line); background: var(--card); border-radius: 99px; padding: 6px 12px; font-size: 14px; cursor: pointer; }
+
+.bars { display: flex; align-items: flex-end; gap: 4px; height: 110px; margin-top: 6px; }
+.bars .bar { flex: 1; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px; opacity: .85; }
+.bars .bar.partial { opacity: .4; }
+.bar-labels { display: flex; gap: 4px; font-size: 10px; color: var(--muted); margin-top: 4px; }
+.bar-labels span { flex: 1; text-align: center; overflow: hidden; white-space: nowrap; }
+
+.amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.amount.in { color: var(--accent); }
+.amount.out { color: var(--bad); }
+
+.login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.login-card { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 10px; }
+.brand { font-size: 34px; font-weight: 800; letter-spacing: -.03em; color: var(--accent); }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 76px);
+  background: var(--text); color: var(--bg); padding: 9px 16px; border-radius: 99px; font-size: 14px; z-index: 10;
+  max-width: calc(100% - 32px);
+}
+.spinner { color: var(--muted); font-size: 14px; padding: 8px 0; }
+details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+
+.demo-banner{background:var(--warn-soft);color:var(--warn);font-size:13px;text-align:center;padding:6px 16px;}
+</style>
+</head>
+<body>
+  <div id="login" class="login" hidden>
+    <form id="login-form" class="card login-card">
+      <div class="brand">HQ</div>
+      <p class="muted">Your day, clients and money in one place.</p>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Password" required>
+      <button type="submit" class="primary">Log in</button>
+      <p id="login-error" class="error" role="alert"></p>
+    </form>
+  </div>
+
+  <div id="app" hidden>
+    <div class="demo-banner">Demo with made-up data. Nothing here is real or sent anywhere.</div>
+    <header class="topbar">
+      <h1 id="view-title">Today</h1>
+      <button id="refresh" class="icon-btn" aria-label="Refresh">↻</button>
+    </header>
+    <main id="view" class="view"></main>
+    <nav class="tabs" aria-label="Sections">
+      <button data-tab="today" class="active"><span>☀︎</span>Today</button>
+      <button data-tab="calendar"><span>▦</span>Calendar</button>
+      <button data-tab="todos"><span>✓</span>To-dos</button>
+      <button data-tab="clients"><span>✉︎</span>Clients</button>
+      <button data-tab="money"><span>$</span>Money</button>
+      <button data-tab="ask"><span>✦</span>Ask</button>
+    </nav>
+  </div>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script>
+// Demo mode: answers the app's API calls in the browser with made-up data. Nothing leaves this page.
+(function () {
+  const TZ = "Australia/Sydney";
+  const day = (n = 0) => { const d = new Date(Date.now() + n * 86400000); return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d); };
+  const off = (() => { const p = new Intl.DateTimeFormat("en-US", { timeZone: TZ, timeZoneName: "longOffset" }).formatToParts(new Date()).find((x) => x.type === "timeZoneName").value; return p.replace("GMT", "") || "+00:00"; })();
+  const at = (n, hm) => `${day(n)}T${hm}:00${off}`;
+  const ago = (mins) => new Date(Date.now() - mins * 60000).toISOString();
+
+  const events = [];
+  for (let i = 0; i < 14; i++) events.push({ title: "Morning training", start: at(i, "06:00"), end: at(i, "07:00"), all_day: false, location: "" });
+  events.push({ title: "Sales call – Mark", start: at(0, "11:30"), end: at(0, "12:15"), all_day: false, location: "Zoom" });
+  events.push({ title: "Client check-ins", start: at(0, "15:00"), end: at(0, "16:30"), all_day: false, location: "" });
+  events.push({ title: "Content shoot", start: at(1, "14:00"), end: at(1, "16:00"), all_day: false, location: "Studio" });
+  events.push({ title: "Team meeting", start: at(3, "09:00"), end: at(3, "09:45"), all_day: false, location: "Google Meet" });
+  events.push({ title: "School holidays", start: at(0, "00:00"), end: at(1, "00:00"), all_day: true, location: "" });
+
+  let nextId = 10;
+  let todos = [
+    { id: 1, title: "Film this week's reels", notes: "", due: day(0), area: "content", priority: 1, done: false },
+    { id: 2, title: "Follow up Tom's failed payment", notes: "", due: day(-1), area: "clients", priority: 1, done: false },
+    { id: 3, title: "Write Sarah's new meal plan", notes: "", due: day(2), area: "clients", priority: 0, done: false },
+    { id: 4, title: "Review ad spend", notes: "", due: day(4), area: "business", priority: 0, done: false },
+    { id: 5, title: "Book physio", notes: "", due: null, area: "health", priority: 0, done: false },
+  ];
+  let money = [
+    { id: 1, date: day(-1), amount: -89, category: "software", note: "GoHighLevel" },
+    { id: 2, date: day(-3), amount: -450, category: "ads", note: "Meta" },
+    { id: 3, date: day(-5), amount: -64.5, category: "food", note: "" },
+  ];
+  const convos = [
+    { id: "c1", contact_id: "k1", name: "Sarah Mitchell", last_message: "Hey! Just did my check-in, struggled a bit with weekends again", last_message_at: ago(40), last_direction: "inbound", unread: 2, channel: "Instagram", send_type: "IG", tags: ["client"],
+      messages: [{ from: "you", text: "How did the week go?", at: ago(1500) }, { from: "them", text: "Hey! Just did my check-in, struggled a bit with weekends again", at: ago(40) }] },
+    { id: "c2", contact_id: "k2", name: "Jake Turner", last_message: "Can we move Thursday's call to Friday?", last_message_at: ago(190), last_direction: "inbound", unread: 1, channel: "SMS", send_type: "SMS", tags: ["client"],
+      messages: [{ from: "them", text: "Can we move Thursday's call to Friday?", at: ago(190) }] },
+    { id: "c3", contact_id: "k3", name: "Priya N", last_message: "Thanks for the plan!", last_message_at: ago(1600), last_direction: "outbound", unread: 0, channel: "Email", send_type: "", tags: [],
+      messages: [{ from: "them", text: "Thanks for the plan!", at: ago(1600) }] },
+  ];
+  let drafts = [];
+  const chat = [];
+
+  const weekly = [];
+  const monday = (() => { const d = new Date(day(0) + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d; })();
+  [3120, 2480, 3360, 2990, 3210, 2750, 3890, 2640, 3540, 3080, 3310, 1450].forEach((amt, i) => {
+    const d = new Date(monday); d.setUTCDate(d.getUTCDate() - (11 - i) * 7); weekly.push({ week_of: d.toISOString().slice(0, 10), amount: amt });
+  });
+  const failed = [{ date: day(-1), amount: 249, customer: "Tom Baker", reason: "The bank declined the payment." }];
+  const stripe = () => ({ configured: true, currency: "AUD", balance_available: 18432.5, balance_pending: 4120, active_subscriptions: 37,
+    this_week: 1450, this_month: 4780, last_month: 13240, weekly, failed, as_of: at(0, new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(new Date())) });
+
+  const sortTodos = (list) => list.slice().sort((a, b) => (a.done - b.done) || ((a.due === null) - (b.due === null)) || String(a.due).localeCompare(String(b.due)) || (b.priority - a.priority) || (a.id - b.id));
+  const summary = (c) => { const { messages, ...rest } = c; return rest; };
+  const draftText = {
+    c1: "Weekends get everyone mate, you're not alone there. What's the main thing that throws you off, social stuff or just less routine?",
+    c2: "No stress Jake, Friday works. Same time suit you?",
+  };
+  const replies = [
+    [/day|today|schedule/i, () => `Here's today:\n\n• 6:00am Morning training\n• 11:30am Sales call – Mark (Zoom)\n• 3:00pm Client check-ins\n\nDue today: film this week's reels. Overdue: follow up Tom's failed payment ($249).`],
+    [/repl|message|inbox/i, () => "Two people are waiting on you:\n\n• Sarah Mitchell (Instagram, 40m ago): struggling with weekends\n• Jake Turner (SMS, 3h ago): wants to move Thursday's call to Friday\n\nWant me to draft replies to both?"],
+    [/revenue|money|stripe/i, () => "This month you've collected $4,780 so far (the month is only partly through, so it isn't comparable to last month's $13,240 yet). This week: $1,450. 37 active subscriptions, and one failed payment from Tom Baker ($249)."],
+    [/week|plan/i, () => "Suggested week:\n\n• Today: reels + Tom's payment\n• Tomorrow: content shoot 2–4pm\n• Sat: Sarah's meal plan (due then)\n• Mon: review ad spend\n\nWant me to add any of these as to-dos?"],
+  ];
+
+  const json = (data, status = 200) => Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(data) });
+  const delay = (ms, v) => new Promise((r) => setTimeout(() => r(v), ms));
+
+  window.fetch = async function (url, opts = {}) {
+    const u = new URL(url, "http://demo");
+    const path = u.pathname, method = (opts.method || "GET").toUpperCase();
+    const body = opts.body ? JSON.parse(opts.body) : {};
+    let m;
+    if (path === "/api/me") return json({ ok: true, timezone: TZ, currency: "AUD", connected: { calendar: true, inbox: true, stripe: true } });
+    if (path === "/api/login" || path === "/api/logout") return json({ ok: true });
+    if (path === "/api/today") {
+      const t = day(0), open = sortTodos(todos.filter((x) => !x.done));
+      return json({ date: t, events: { configured: true, errors: 0, events: events.filter((e) => e.start.slice(0, 10) <= day(1)).sort((a, b) => a.start.localeCompare(b.start)) },
+        todos_due: open.filter((x) => x.due && x.due <= t), todos_important: open.filter((x) => x.priority && !(x.due && x.due <= t)).slice(0, 5),
+        open_todos: open.length, unread: { configured: true, conversations: convos.filter((c) => c.unread).map(summary) }, drafts,
+        money: (({ this_week, this_month }) => ({ configured: true, this_week, this_month, failed }))(stripe()) });
+    }
+    if (path === "/api/calendar") {
+      const start = u.searchParams.get("start") || day(0), days = Number(u.searchParams.get("days") || 7);
+      const end = (() => { const d = new Date(start + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); })();
+      return json({ configured: true, errors: 0, events: events.filter((e) => e.start.slice(0, 10) >= start && e.start.slice(0, 10) < end).sort((a, b) => a.start.localeCompare(b.start)) });
+    }
+    if (path === "/api/todos" && method === "GET") return json(sortTodos(u.searchParams.get("include_done") === "true" ? todos : todos.filter((x) => !x.done)));
+    if (path === "/api/todos" && method === "POST") { const t = { id: nextId++, notes: "", area: "business", priority: 0, done: false, ...body }; todos.push(t); return json(t); }
+    if ((m = path.match(/^\/api\/todos\/(\d+)$/))) {
+      const t = todos.find((x) => x.id === Number(m[1]));
+      if (method === "DELETE") { todos = todos.filter((x) => x !== t); return json({ ok: true }); }
+      Object.assign(t, body, body.due === "" ? { due: null } : {}); return json(t);
+    }
+    if (path === "/api/inbox") return json({ conversations: convos.filter((c) => u.searchParams.get("unread") !== "true" || c.unread).map(summary) });
+    if ((m = path.match(/^\/api\/inbox\/([^/]+)\/draft$/))) {
+      const c = convos.find((x) => x.id === m[1]);
+      drafts = drafts.filter((d) => d.conversation_id !== c.id);
+      const d = { id: nextId++, conversation_id: c.id, contact_id: c.contact_id, contact_name: c.name, channel: c.channel, text: body.instructions ? `${draftText[c.id] || "Hey!"} (${body.instructions})` : (draftText[c.id] || "Hey! Thanks for reaching out."), status: "draft" };
+      drafts.unshift(d); return delay(900, json(d));
+    }
+    if ((m = path.match(/^\/api\/inbox\/([^/]+)\/send$/))) {
+      const c = convos.find((x) => x.id === m[1]);
+      c.messages.push({ from: "you", text: body.text, at: new Date().toISOString() });
+      Object.assign(c, { last_message: body.text, last_direction: "outbound", last_message_at: new Date().toISOString(), unread: 0 });
+      drafts = drafts.filter((d) => d.conversation_id !== c.id);
+      return json({ ok: true, message_id: "demo" });
+    }
+    if ((m = path.match(/^\/api\/inbox\/([^/]+)$/))) { const c = convos.find((x) => x.id === decodeURIComponent(m[1])); c.unread = 0; return json({ ...c, draft: drafts.find((d) => d.conversation_id === c.id) || null }); }
+    if ((m = path.match(/^\/api\/drafts\/(\d+)\/discard$/))) { drafts = drafts.filter((d) => d.id !== Number(m[1])); return json({ ok: true }); }
+    if (path === "/api/finance") {
+      const month = day(0).slice(0, 8) + "01", cur = money.filter((e) => e.date >= month), byCat = {};
+      cur.forEach((e) => (byCat[e.category] = (byCat[e.category] || 0) + e.amount));
+      const mIn = cur.filter((e) => e.amount >= 0).reduce((s, e) => s + e.amount, 0), mOut = cur.filter((e) => e.amount < 0).reduce((s, e) => s + e.amount, 0);
+      return json({ stripe: stripe(), log: { month_in: mIn, month_out: mOut, month_net: mIn + mOut, by_category: byCat, recent: money.slice().sort((a, b) => b.date.localeCompare(a.date)) } });
+    }
+    if (path === "/api/money" && method === "POST") { const e = { id: nextId++, date: body.date || day(0), amount: body.amount, category: (body.category || "other").toLowerCase(), note: body.note || "" }; money.push(e); return json(e); }
+    if ((m = path.match(/^\/api\/money\/(\d+)$/))) { money = money.filter((e) => e.id !== Number(m[1])); return json({ ok: true }); }
+    if (path === "/api/chat" && method === "GET") return json({ chat_id: 1, messages: chat });
+    if (path === "/api/chat/new") { chat.length = 0; return json({ chat_id: 1 }); }
+    if (path === "/api/chat" && method === "POST") {
+      const add = body.message.match(/(?:add|remind me to)\s+(.+)/i);
+      let reply, tools = [];
+      if (add) { const t = { id: nextId++, title: add[1].replace(/\s+tomorrow$/i, ""), notes: "", due: /tomorrow/i.test(add[1]) ? day(1) : day(0), area: "business", priority: 0, done: false }; todos.push(t); reply = `Added "${t.title}" for ${/tomorrow/i.test(add[1]) ? "tomorrow" : "today"}.`; tools = ["add_todo"]; }
+      else { const hit = replies.find(([re]) => re.test(body.message)); reply = hit ? hit[1]() : "In the real app I'd look this up across your calendar, to-dos, inbox and Stripe. This demo only has a few canned answers. Try \"what's my day look like?\" or \"add call Jake tomorrow\"."; tools = hit ? ["get_schedule", "list_todos"] : []; }
+      chat.push({ role: "user", text: body.message }, { role: "assistant", text: reply });
+      return delay(1100, json({ reply, tools }));
+    }
+    return json({ detail: "Not in the demo" }, 404);
+  };
+})();
+
+</script>
+<script>
+"use strict";
+
+// ---------- helpers ----------
+
+const $ = (sel) => document.querySelector(sel);
+const view = $("#view");
+let me = { currency: "AUD", timezone: "Australia/Sydney", connected: {} };
+
+// Builds DOM nodes. Text is always set as text, never as HTML, because inbox content comes from other people.
+function h(tag, attrs = {}, ...children) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "value") el.value = v;
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of children.flat(Infinity)) {
+    if (c === null || c === undefined || c === false) continue;
+    el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return el;
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    method: opts.method || "GET",
+    headers: opts.body ? { "Content-Type": "application/json" } : {},
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+    credentials: "same-origin",
+  });
+  if (res.status === 401 && path !== "/api/login") { showLogin(); throw new Error("Please log in"); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+  return data;
+}
+
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => (t.hidden = true), 2800);
+}
+
+const money = (n) => (n === null || n === undefined) ? "—" :
+  new Intl.NumberFormat("en-AU", { style: "currency", currency: me.currency, maximumFractionDigits: Math.abs(n) >= 1000 ? 0 : 2 }).format(n);
+
+function todayISO() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: me.timezone }).format(new Date());
+}
+function addDays(iso, n) {
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function dayLabel(iso) {
+  const t = todayISO();
+  if (iso === t) return "Today";
+  if (iso === addDays(t, 1)) return "Tomorrow";
+  if (iso === addDays(t, -1)) return "Yesterday";
+  return new Date(iso + "T12:00:00Z").toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+}
+// Event times come back already in the HQ timezone with an offset; show the wall-clock part as-is.
+const clock = (isoDateTime) => {
+  const [hh, mm] = isoDateTime.slice(11, 16).split(":").map(Number);
+  const ampm = hh >= 12 ? "pm" : "am";
+  return `${((hh + 11) % 12) + 1}:${String(mm).padStart(2, "0")}${ampm}`;
+};
+function ago(iso) {
+  if (!iso) return "";
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+const notConnected = (what, how) => h("div", { class: "empty" }, `${what} isn't connected yet. ${how}`);
+const loading = () => h("div", { class: "spinner" }, "Loading…");
+const errorBox = (e) => h("div", { class: "error small" }, e.message || String(e));
+
+// ---------- shared pieces ----------
+
+function eventList(events) {
+  if (!events.length) return h("div", { class: "empty" }, "Nothing scheduled.");
+  return h("ul", { class: "list" }, events.map((e) => h("li", {},
+    h("div", { class: "time" }, e.all_day ? "All day" : clock(e.start)),
+    h("div", { class: "grow" },
+      h("div", { class: "title" }, e.title),
+      (e.location || !e.all_day) ? h("div", { class: "meta" },
+        [!e.all_day ? `until ${clock(e.end)}` : "", e.location].filter(Boolean).join(" · ")) : null,
+    ),
+  )));
+}
+
+function todoItem(t, onChange) {
+  const iso = todayISO();
+  let due = null;
+  if (t.due) {
+    const cls = t.due < iso ? "pill bad" : t.due === iso ? "pill warn" : "pill";
+    due = h("span", { class: cls }, t.due < iso ? `Overdue · ${dayLabel(t.due)}` : dayLabel(t.due));
+  }
+  return h("li", {},
+    h("button", {
+      class: "check" + (t.done ? " done" : ""), "aria-label": t.done ? "Mark not done" : "Mark done",
+      onclick: async () => {
+        await api(`/api/todos/${t.id}`, { method: "PATCH", body: { done: !t.done } });
+        if (!t.done) toast("Done ✓");
+        onChange();
+      },
+    }),
+    h("div", { class: "grow" },
+      h("div", { class: "title" + (t.done ? " done-text" : "") }, t.priority ? "★ " : "", t.title),
+      h("div", { class: "meta" }, due, " ", t.area, t.notes ? ` · ${t.notes}` : ""),
+    ),
+    h("button", {
+      class: "icon-btn small", "aria-label": "Delete",
+      onclick: async () => { if (confirm(`Delete "${t.title}"?`)) { await api(`/api/todos/${t.id}`, { method: "DELETE" }); onChange(); } },
+    }, "×"),
+  );
+}
+
+function conversationItem(c) {
+  return h("li", { class: "clickable", onclick: () => go("clients", c.id) },
+    h("div", { class: "grow" },
+      h("div", { class: "title" }, c.name, " ", c.unread ? h("span", { class: "pill" }, `${c.unread} new`) : null),
+      h("div", { class: "meta" }, c.last_direction === "outbound" ? "You: " : "", c.last_message || "(no text)"),
+    ),
+    h("div", { class: "meta" }, c.channel, h("br"), ago(c.last_message_at)),
+  );
+}
+
+// ---------- views ----------
+
+const views = {};
+
+views.today = async () => {
+  const d = await api("/api/today");
+  const iso = d.date;
+  // The feed covers today and tomorrow; anything that starts on or before today is on today.
+  const todayEvents = d.events.events.filter((e) => e.start.slice(0, 10) <= iso);
+  const tomorrowEvents = d.events.events.filter((e) => e.start.slice(0, 10) === addDays(iso, 1));
+  const unread = d.unread.conversations || [];
+  const hour = Number(new Intl.DateTimeFormat("en-AU", { hour: "numeric", hourCycle: "h23", timeZone: me.timezone }).format(new Date()));
+  const greeting = hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : "Evening";
+
+  return [
+    h("p", { class: "muted", style: "margin:0 0 12px" },
+      `${greeting} Alistair. ${new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: me.timezone })}.`),
+    h("div", { class: "stats", style: "margin-bottom:12px" },
+      h("div", { class: "stat" }, h("div", { class: "label" }, "On today"), h("div", { class: "value" }, d.events.configured ? todayEvents.filter((e) => !e.all_day).length : "—"), h("div", { class: "sub" }, "events")),
+      h("div", { class: "stat" }, h("div", { class: "label" }, "Due / overdue"), h("div", { class: "value" }, d.todos_due.length), h("div", { class: "sub" }, `${d.open_todos} open in total`)),
+      h("div", { class: "stat" }, h("div", { class: "label" }, "Unread chats"), h("div", { class: "value" }, d.unread.configured ? unread.length : "—"), h("div", { class: "sub" }, d.drafts.length ? `${d.drafts.length} draft(s) waiting` : "in GoHighLevel")),
+      h("div", { class: "stat" }, h("div", { class: "label" }, "Collected this week"), h("div", { class: "value" }, d.money.configured ? money(d.money.this_week) : "—"), h("div", { class: "sub" }, d.money.configured ? `${money(d.money.this_month)} this month` : "Stripe not connected")),
+    ),
+    h("div", { class: "card" }, h("h2", {}, "Schedule"),
+      d.events.configured ? eventList(todayEvents) : notConnected("Your calendar", "Add HQ_CALENDAR_ICS_URLS."),
+      d.events.errors ? h("div", { class: "error small" }, "One of your calendars didn't load.") : null,
+      tomorrowEvents.length ? h("details", { style: "margin-top:8px" }, h("summary", {}, `Tomorrow · ${tomorrowEvents.length} event(s)`), eventList(tomorrowEvents)) : null,
+    ),
+    h("div", { class: "card" }, h("h2", {}, "To do today ", h("span", { class: "count" }, d.todos_due.length || "")),
+      d.todos_due.length ? h("ul", { class: "list" }, d.todos_due.map((t) => todoItem(t, render))) : h("div", { class: "empty" }, "Nothing due. "),
+      d.todos_important.length ? [h("h2", { style: "margin-top:12px" }, "Important, no rush"), h("ul", { class: "list" }, d.todos_important.map((t) => todoItem(t, render)))] : null,
+      quickAdd(render),
+    ),
+    d.drafts.length ? h("div", { class: "card" }, h("h2", {}, "Reply drafts waiting for you"),
+      h("ul", { class: "list" }, d.drafts.map((dr) => h("li", { class: "clickable", onclick: () => go("clients", dr.conversation_id) },
+        h("div", { class: "grow" }, h("div", { class: "title" }, dr.contact_name), h("div", { class: "meta" }, dr.text)))))) : null,
+    h("div", { class: "card" }, h("h2", {}, "Unread messages"),
+      !d.unread.configured ? notConnected("Your inbox", "Add GHL_API_TOKEN and GHL_LOCATION_ID.")
+        : d.unread.error ? h("div", { class: "error small" }, d.unread.error)
+        : unread.length ? h("ul", { class: "list" }, unread.map(conversationItem)) : h("div", { class: "empty" }, "Inbox zero 🙌"),
+    ),
+    d.money.failed && d.money.failed.length ? h("div", { class: "card" }, h("h2", {}, "Failed payments"),
+      h("ul", { class: "list" }, d.money.failed.slice(0, 5).map((f) => h("li", {},
+        h("div", { class: "grow" }, h("div", { class: "title" }, f.customer || "Unknown customer"), h("div", { class: "meta" }, `${dayLabel(f.date)} · ${f.reason}`)),
+        h("div", { class: "amount out" }, money(f.amount)))))) : null,
+  ];
+};
+
+function quickAdd(after, defaults = {}) {
+  const input = h("input", { type: "text", placeholder: "Add a to-do…", "aria-label": "New to-do" });
+  const due = h("input", { type: "date", value: defaults.due || todayISO(), "aria-label": "Due date" });
+  return h("form", {
+    class: "stack", style: "margin-top:10px",
+    onsubmit: async (ev) => {
+      ev.preventDefault();
+      if (!input.value.trim()) return;
+      await api("/api/todos", { method: "POST", body: { title: input.value.trim(), due: due.value || null, area: defaults.area || "business" } });
+      input.value = "";
+      after();
+    },
+  }, input, h("div", { class: "row" }, due, h("button", { class: "secondary", type: "submit", style: "flex:0 0 auto" }, "Add")));
+}
+
+let calStart = null;
+views.calendar = async () => {
+  calStart = calStart || todayISO();
+  const days = 7;
+  const d = await api(`/api/calendar?start=${calStart}&days=${days}`);
+  if (!d.configured) return h("div", { class: "card" }, notConnected("Your calendar", "Add one or more private iCal links to HQ_CALENDAR_ICS_URLS."));
+  const byDay = {};
+  for (let i = 0; i < days; i++) byDay[addDays(calStart, i)] = [];
+  for (const e of d.events) {
+    // Multi-day and all-day events show on every day they cover.
+    for (let i = 0; i < days; i++) {
+      const day = addDays(calStart, i);
+      const endDay = e.end.slice(0, 10);
+      if (e.start.slice(0, 10) <= day && (endDay > day || (endDay === day && !e.all_day) || e.start.slice(0, 10) === day)) byDay[day].push(e);
+    }
+  }
+  return [
+    h("div", { class: "segmented" },
+      h("button", { onclick: () => { calStart = addDays(calStart, -7); render(); } }, "← Prev"),
+      h("button", { class: calStart === todayISO() ? "active" : "", onclick: () => { calStart = todayISO(); render(); } }, "This week"),
+      h("button", { onclick: () => { calStart = addDays(calStart, 7); render(); } }, "Next →"),
+    ),
+    d.errors ? h("div", { class: "error small" }, "One of your calendars didn't load.") : null,
+    h("div", { class: "card" }, Object.entries(byDay).map(([day, evs]) => [h("div", { class: "day-head" }, dayLabel(day)), eventList(evs)])),
+    h("p", { class: "muted small" }, "Read-only. Add or change events in Google Calendar."),
+  ];
+};
+
+let todoFilter = "open";
+views.todos = async () => {
+  const todos = await api(`/api/todos?include_done=${todoFilter === "done"}`);
+  const iso = todayISO();
+  const shown = todoFilter === "done" ? todos.filter((t) => t.done) : todos;
+  const groups = todoFilter === "done" ? [["Done", shown]] : [
+    ["Overdue", shown.filter((t) => t.due && t.due < iso)],
+    ["Today", shown.filter((t) => t.due === iso)],
+    ["Upcoming", shown.filter((t) => t.due && t.due > iso)],
+    ["Someday", shown.filter((t) => !t.due)],
+  ];
+  const area = h("select", { "aria-label": "Area" }, ["business", "clients", "content", "personal", "health", "home"].map((a) => h("option", { value: a }, a)));
+  const title = h("input", { type: "text", placeholder: "What needs doing?", required: true });
+  const due = h("input", { type: "date", "aria-label": "Due date" });
+  const important = h("input", { type: "checkbox", id: "imp" });
+  return [
+    h("form", {
+      class: "card stack",
+      onsubmit: async (ev) => {
+        ev.preventDefault();
+        await api("/api/todos", { method: "POST", body: { title: title.value.trim(), due: due.value || null, area: area.value, priority: important.checked ? 1 : 0 } });
+        toast("Added");
+        render();
+      },
+    }, title, h("div", { class: "row" }, due, area), h("div", { class: "row", style: "align-items:center" },
+      h("label", { for: "imp", class: "small", style: "display:flex;gap:6px;align-items:center" }, important, "Important"),
+      h("button", { class: "primary", type: "submit", style: "flex:0 0 auto" }, "Add to-do"))),
+    h("div", { class: "segmented" },
+      ["open", "done"].map((f) => h("button", { class: todoFilter === f ? "active" : "", onclick: () => { todoFilter = f; render(); } }, f === "open" ? "Open" : "Done"))),
+    groups.filter(([, items]) => items.length).map(([name, items]) =>
+      h("div", { class: "card" }, h("h2", {}, name, " ", h("span", { class: "count" }, items.length)), h("ul", { class: "list" }, items.map((t) => todoItem(t, render))))),
+    shown.length ? null : h("div", { class: "empty" }, todoFilter === "done" ? "Nothing completed yet." : "All clear."),
+  ];
+};
+
+let inboxFilter = "all";
+views.clients = async (conversationId) => {
+  if (conversationId) return threadView(conversationId);
+  if (!me.connected.inbox) return h("div", { class: "card" }, notConnected("Your GoHighLevel inbox", "Add GHL_API_TOKEN and GHL_LOCATION_ID."));
+  const d = await api(`/api/inbox?unread=${inboxFilter === "unread"}`);
+  return [
+    h("div", { class: "segmented" },
+      ["all", "unread"].map((f) => h("button", { class: inboxFilter === f ? "active" : "", onclick: () => { inboxFilter = f; render(); } }, f === "all" ? "All" : "Unread"))),
+    h("div", { class: "card" }, d.conversations.length ? h("ul", { class: "list" }, d.conversations.map(conversationItem)) : h("div", { class: "empty" }, "No conversations.")),
+  ];
+};
+
+async function threadView(id) {
+  const c = await api(`/api/inbox/${encodeURIComponent(id)}`);
+  $("#view-title").textContent = c.name;
+  const box = h("textarea", { placeholder: c.send_type ? `Reply on ${c.channel}…` : "", value: c.draft ? c.draft.text : "" });
+  const instructions = h("input", { type: "text", placeholder: "Optional: what should the reply say?" });
+  let draftId = c.draft ? c.draft.id : null;
+
+  const draftBtn = h("button", {
+    class: "secondary", type: "button",
+    onclick: async () => {
+      draftBtn.disabled = true; draftBtn.textContent = "Drafting…";
+      try {
+        const dr = await api(`/api/inbox/${encodeURIComponent(id)}/draft`, { method: "POST", body: { instructions: instructions.value } });
+        box.value = dr.text; draftId = dr.id;
+      } catch (e) { toast(e.message); }
+      draftBtn.disabled = false; draftBtn.textContent = "✦ Draft with Claude";
+    },
+  }, "✦ Draft with Claude");
+
+  const sendBtn = h("button", {
+    class: "primary", type: "button",
+    onclick: async () => {
+      const text = box.value.trim();
+      if (!text) return;
+      if (!confirm(`Send this to ${c.name} on ${c.channel}?\n\n${text}`)) return;
+      sendBtn.disabled = true;
+      try {
+        await api(`/api/inbox/${encodeURIComponent(id)}/send`, { method: "POST", body: { text, draft_id: draftId } });
+        toast("Sent");
+        render();
+      } catch (e) { toast(e.message); sendBtn.disabled = false; }
+    },
+  }, "Send");
+
+  return [
+    h("button", { class: "link-btn", style: "margin-bottom:10px", onclick: () => go("clients") }, "← All conversations"),
+    h("div", { class: "muted small", style: "margin-bottom:8px" }, c.channel, c.tags.length ? ` · ${c.tags.join(", ")}` : ""),
+    h("div", { class: "thread" }, c.messages.length ? c.messages.map((m) =>
+      h("div", { class: `bubble ${m.from}` }, m.text, h("span", { class: "at" }, ago(m.at)))) : h("div", { class: "empty" }, "No messages.")),
+    c.send_type ? h("div", { class: "card stack" },
+      box,
+      instructions,
+      h("div", { class: "row" }, draftBtn, sendBtn),
+      draftId ? h("button", { class: "link-btn small", onclick: async () => { await api(`/api/drafts/${draftId}/discard`, { method: "POST" }); render(); } }, "Discard draft") : null,
+      h("div", { class: "muted small" }, "Nothing is sent until you press Send and confirm."),
+    ) : h("div", { class: "card muted small" }, `Replying on ${c.channel} isn't supported here yet. Reply in GoHighLevel.`),
+  ];
+}
+
+views.money = async () => {
+  const d = await api("/api/finance");
+  const s = d.stripe;
+  const log = d.log;
+  const weeks = (s.weekly || []).slice(-12);
+  const max = Math.max(1, ...weeks.map((w) => w.amount));
+  const amount = h("input", { type: "number", step: "0.01", placeholder: "Amount", required: true });
+  const kind = h("select", { "aria-label": "In or out" }, h("option", { value: "out" }, "Money out"), h("option", { value: "in" }, "Money in"));
+  const category = h("input", { type: "text", placeholder: "Category (e.g. software)", list: "cats" });
+  const note = h("input", { type: "text", placeholder: "Note" });
+  const cats = h("datalist", { id: "cats" }, ["software", "ads", "contractors", "food", "rent", "transport", "health", "fun", "income"].map((c) => h("option", { value: c })));
+
+  return [
+    h("div", { class: "card" }, h("h2", {}, "Business · Stripe"),
+      !s.configured ? notConnected("Stripe", "Add a read-only STRIPE_API_KEY.")
+        : s.error ? h("div", { class: "error small" }, s.error)
+        : [
+          h("div", { class: "stats" },
+            h("div", { class: "stat" }, h("div", { class: "label" }, "This week"), h("div", { class: "value" }, money(s.this_week)), h("div", { class: "sub" }, "so far")),
+            h("div", { class: "stat" }, h("div", { class: "label" }, "This month"), h("div", { class: "value" }, money(s.this_month)), h("div", { class: "sub" }, `last month ${money(s.last_month)}`)),
+            h("div", { class: "stat" }, h("div", { class: "label" }, "Balance"), h("div", { class: "value" }, money(s.balance_available)), h("div", { class: "sub" }, `${money(s.balance_pending)} pending`)),
+            h("div", { class: "stat" }, h("div", { class: "label" }, "Active subscriptions"), h("div", { class: "value" }, s.active_subscriptions), h("div", { class: "sub" }, "in Stripe")),
+          ),
+          weeks.length ? [
+            h("div", { class: "bars", role: "img", "aria-label": "Cash collected per week" }, weeks.map((w, i) =>
+              h("div", { class: "bar" + (i === weeks.length - 1 ? " partial" : ""), style: `height:${(w.amount / max) * 100}%`, title: `Week of ${w.week_of}: ${money(w.amount)}` }))),
+            h("div", { class: "bar-labels" }, weeks.map((w) => h("span", {}, `${Number(w.week_of.slice(8, 10))}/${Number(w.week_of.slice(5, 7))}`))),
+            h("div", { class: "muted small", style: "margin-top:6px" }, "Cash collected per week, net of refunds. The current week is partial."),
+          ] : null,
+          s.failed && s.failed.length ? [h("h2", { style: "margin-top:14px" }, "Failed payments"),
+            h("ul", { class: "list" }, s.failed.map((f) => h("li", {},
+              h("div", { class: "grow" }, h("div", { class: "title" }, f.customer || "Unknown"), h("div", { class: "meta" }, `${dayLabel(f.date)} · ${f.reason}`)),
+              h("div", { class: "amount out" }, money(f.amount)))))] : null,
+          h("div", { class: "muted small", style: "margin-top:8px" }, `As of ${s.as_of ? s.as_of.slice(11, 16) : ""}, refreshed every 10 minutes.`),
+        ],
+    ),
+    h("div", { class: "card" }, h("h2", {}, "Money log · this month"),
+      h("div", { class: "stats", style: "margin-bottom:10px" },
+        h("div", { class: "stat" }, h("div", { class: "label" }, "In"), h("div", { class: "value amount in" }, money(log.month_in))),
+        h("div", { class: "stat" }, h("div", { class: "label" }, "Out"), h("div", { class: "value amount out" }, money(Math.abs(log.month_out)))),
+        h("div", { class: "stat" }, h("div", { class: "label" }, "Net"), h("div", { class: "value" }, money(log.month_net))),
+      ),
+      Object.keys(log.by_category).length ? h("ul", { class: "list" }, Object.entries(log.by_category).map(([cat, v]) =>
+        h("li", {}, h("div", { class: "grow" }, cat), h("div", { class: "amount " + (v < 0 ? "out" : "in") }, money(v))))) : null,
+      h("form", {
+        class: "stack", style: "margin-top:12px",
+        onsubmit: async (ev) => {
+          ev.preventDefault();
+          const value = Math.abs(parseFloat(amount.value)) * (kind.value === "out" ? -1 : 1);
+          await api("/api/money", { method: "POST", body: { amount: value, category: category.value || "other", note: note.value } });
+          toast("Logged");
+          render();
+        },
+      }, h("div", { class: "row" }, amount, kind), h("div", { class: "row" }, category, note), cats, h("button", { class: "primary", type: "submit" }, "Log it")),
+    ),
+    log.recent.length ? h("div", { class: "card" }, h("h2", {}, "Recent entries"),
+      h("ul", { class: "list" }, log.recent.map((e) => h("li", {},
+        h("div", { class: "grow" }, h("div", { class: "title" }, e.category), h("div", { class: "meta" }, `${dayLabel(e.date)}${e.note ? " · " + e.note : ""}`)),
+        h("div", { class: "amount " + (e.amount < 0 ? "out" : "in") }, money(e.amount)),
+        h("button", { class: "icon-btn small", "aria-label": "Delete", onclick: async () => { if (confirm("Delete this entry?")) { await api(`/api/money/${e.id}`, { method: "DELETE" }); render(); } } }, "×"))))) : null,
+  ];
+};
+
+views.ask = async () => {
+  const d = await api("/api/chat");
+  const thread = h("div", { class: "chat" }, d.messages.map((m) => h("div", { class: `bubble ${m.role}` }, m.text)));
+  const input = h("textarea", { placeholder: "Ask anything, or tell me what to do…", rows: 2 });
+  const send = h("button", { class: "primary", type: "submit", style: "flex:0 0 auto" }, "Send");
+
+  async function ask(text) {
+    if (!text.trim()) return;
+    thread.append(h("div", { class: "bubble user" }, text));
+    const thinking = h("div", { class: "bubble assistant muted" }, "Thinking…");
+    thread.append(thinking);
+    thinking.scrollIntoView({ behavior: "smooth", block: "end" });
+    input.value = ""; send.disabled = true;
+    try {
+      const r = await api("/api/chat", { method: "POST", body: { message: text } });
+      thinking.className = "bubble assistant";
+      thinking.textContent = r.reply || "(no reply)";
+      if (r.tools && r.tools.length) thinking.append(h("span", { class: "at" }, `used: ${[...new Set(r.tools)].join(", ").replaceAll("_", " ")}`));
+    } catch (e) {
+      thinking.className = "bubble assistant error";
+      thinking.textContent = e.message;
+    }
+    send.disabled = false;
+    thinking.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
+  const suggestions = ["What's my day look like?", "Who do I need to reply to?", "How's revenue this month?", "Plan my week"];
+  return [
+    h("div", { class: "row", style: "justify-content:flex-end;margin-bottom:8px" },
+      h("button", { class: "ghost", style: "flex:0 0 auto", onclick: async () => { await api("/api/chat/new", { method: "POST" }); render(); } }, "New chat")),
+    d.messages.length ? null : h("div", { class: "suggestions" }, suggestions.map((s) => h("button", { onclick: () => ask(s) }, s))),
+    thread,
+    h("form", { class: "chat-input row", onsubmit: (ev) => { ev.preventDefault(); ask(input.value); } }, input, send),
+  ];
+};
+
+// ---------- routing ----------
+
+const titles = { today: "Today", calendar: "Calendar", todos: "To-dos", clients: "Clients", money: "Money", ask: "Ask" };
+let current = { tab: "today", arg: null };
+
+function go(tab, arg = null) {
+  current = { tab, arg };
+  const hash = arg ? `#${tab}/${encodeURIComponent(arg)}` : `#${tab}`;
+  if (location.hash !== hash) history.pushState(null, "", hash);
+  render();
+}
+
+async function render() {
+  const { tab, arg } = current;
+  document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+  $("#view-title").textContent = titles[tab];
+  view.replaceChildren(loading());
+  try {
+    const content = await views[tab](arg);
+    if (current.tab !== tab || current.arg !== arg) return; // the user moved on while this loaded
+    view.replaceChildren(...[content].flat(3).filter(Boolean));
+  } catch (e) {
+    view.replaceChildren(h("div", { class: "card" }, errorBox(e)));
+  }
+}
+
+function fromHash() {
+  const [tab, arg] = location.hash.slice(1).split("/");
+  current = { tab: titles[tab] ? tab : "today", arg: arg ? decodeURIComponent(arg) : null };
+}
+
+document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.tab)));
+$("#refresh").addEventListener("click", render);
+window.addEventListener("popstate", () => { fromHash(); render(); });
+
+// ---------- login ----------
+
+function showLogin() {
+  $("#app").hidden = true;
+  $("#login").hidden = false;
+  $("#password").focus();
+}
+
+$("#login-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  $("#login-error").textContent = "";
+  try {
+    await api("/api/login", { method: "POST", body: { password: $("#password").value } });
+    $("#password").value = "";
+    start();
+  } catch (e) {
+    $("#login-error").textContent = e.message;
+  }
+});
+
+async function start() {
+  try {
+    me = await api("/api/me");
+  } catch (e) {
+    if (e.message !== "Please log in") {
+      $("#login").hidden = false;
+      $("#login-error").textContent = e.message;
+    }
+    return;
+  }
+  $("#login").hidden = true;
+  $("#app").hidden = false;
+  fromHash();
+  render();
+}
+
+start();
+
+</script>
+</body>
+</html>
