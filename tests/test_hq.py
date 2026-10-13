@@ -306,3 +306,37 @@ def test_asana_todos_round_trip(store):
     asyncio.run(run())
     # The workspace is looked up once, then reused.
     assert sum(r.url.path.endswith("/users/me") for r in seen) == 1
+
+
+def test_connector_tools_and_secret_url(store):
+    import asyncio
+
+    from fastapi import FastAPI
+
+    from hq.connector import ConnectorRoute, build_connector
+    from hq.todos import LocalTodos
+
+    mcp = build_connector(store, LocalTodos(store))
+
+    async def run():
+        names = {t.name for t in await mcp.list_tools()}
+        assert {"get_today", "list_todos", "add_todo", "save_reply_draft", "finance_summary"} <= names
+        assert not any("send" in n for n in names)  # the connector can never send a message
+        await mcp.call_tool("add_todo", {"title": "Call Jake", "due": "2026-10-14"})
+        await mcp.call_tool("save_reply_draft", {"conversation_id": "c1", "text": "hey"})
+
+    asyncio.run(run())
+    assert [t["title"] for t in store.list_todos()] == ["Call Jake"]
+    assert store.list_drafts() == []  # GoHighLevel isn't configured in tests, so nothing was saved
+
+    async def fake_mcp(scope, receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": scope["path"].encode()})
+
+    inner = FastAPI()
+    token = "t" * 32
+    routed = TestClient(ConnectorRoute(inner, mcp_app=fake_mcp, token=token))
+    assert routed.post(f"/mcp/{token}").text == "/mcp"
+    assert routed.post("/mcp/" + "x" * 32).status_code == 404
+    short = TestClient(ConnectorRoute(inner, mcp_app=fake_mcp, token="short"))
+    assert short.post("/mcp/short").status_code == 404  # a weak token never opens the connector

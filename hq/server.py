@@ -9,6 +9,7 @@ import hmac
 import logging
 import re
 import time
+from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
 
@@ -23,6 +24,7 @@ from . import calendar, finance
 from .assistant import Assistant
 from .clients import InboxClient, draft_reply, render_messages
 from .config import hq_settings
+from .connector import ConnectorRoute, connector_app
 from .store import HQStore
 from .todos import todo_backend
 
@@ -32,9 +34,23 @@ log = logging.getLogger("hq")
 STATIC = Path(__file__).parent / "static"
 COOKIE = "hq_session"
 
-app = FastAPI(title="HQ", docs_url=None, redoc_url=None, openapi_url=None)
 store = HQStore(hq_settings.db_path)
 todos = todo_backend(store)
+# The Claude connector (see hq/connector.py), when HQ_CONNECTOR_TOKEN is set.
+mcp_app = connector_app(store, todos)
+
+
+@asynccontextmanager
+async def lifespan(_app):
+    if mcp_app is None:
+        yield
+        return
+    async with mcp_app.router.lifespan_context(mcp_app):
+        yield
+
+
+app = FastAPI(title="HQ", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+app.add_middleware(ConnectorRoute, mcp_app=mcp_app, token=hq_settings.connector_token)
 _assistant: Assistant | None = None
 _chat_lock = asyncio.Lock()
 
@@ -122,6 +138,7 @@ async def me() -> dict:
             "inbox": hq_settings.ghl_configured,
             "stripe": bool(hq_settings.stripe_key),
             "asana": todos.source == "asana",
+            "claude_connector": mcp_app is not None,
         },
     }
 

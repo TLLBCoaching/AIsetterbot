@@ -43,6 +43,9 @@ class HQSettings:
     asana_workspace: str = os.environ.get("ASANA_WORKSPACE_GID", "")  # defaults to your first workspace
     asana_project: str = os.environ.get("ASANA_PROJECT_GID", "")  # optional: also add new tasks to this project
 
+    # Claude connector: a long random string. Claude connects at https://<your HQ>/mcp/<this token>.
+    connector_token: str = os.environ.get("HQ_CONNECTOR_TOKEN", "")
+
     db_path: Path = field(default_factory=lambda: Path(os.environ.get("HQ_DB", str(ROOT / "data" / "hq.db"))))
 
     @property

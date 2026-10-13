@@ -109,6 +109,20 @@ Security: one password, a signed session cookie (30 days, HTTP-only, HTTPS-only)
 after 5 wrong passwords. HQ refuses to serve anything until `HQ_PASSWORD` and `HQ_SECRET_KEY` are set.
 Changing the password signs every device out. Treat your iCal links and the Stripe key like passwords.
 
+**Use HQ from the Claude app.** HQ is also a Claude connector, so you can ask Claude on the web, phone or
+desktop things like "what's on today?", "add call Jake tomorrow", "who's waiting on a reply?" or "draft a
+reply to Sarah". Claude gets 10 tools: today at a glance, schedule, to-dos (list, add, update), conversations
+(list, read), save a reply draft, money summary, and log money. It can't send messages: drafts wait in HQ's
+Clients tab until you press Send.
+
+1. Set `HQ_CONNECTOR_TOKEN` to a long random string (see `.env.example`) and redeploy.
+2. In Claude: **Settings → Connectors → Add custom connector**. Name it HQ, and for the URL use
+   `https://<your HQ address>/mcp/<HQ_CONNECTOR_TOKEN>`.
+3. Turn HQ on in a chat from the tools menu.
+
+The token in that URL is the only key, so keep it like a password. To lock Claude out, change or clear
+`HQ_CONNECTOR_TOKEN` and redeploy.
+
 Not in v1: creating calendar events (needs Google OAuth), replying to email threads, and bank feeds for
 personal finances (the money log is manual).
 
@@ -124,5 +138,6 @@ scripts/train.py     learn from your DM exports
 evals/               simulated-lead test suite
 hq/                  personal dashboard: server.py (API + login), assistant.py (Claude + tools),
                      calendar.py, finance.py, clients.py, todos.py (Asana or local),
+                     connector.py (Claude connector),
                      store.py, static/ (the app)
 ```
