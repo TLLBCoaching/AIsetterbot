@@ -99,6 +99,44 @@ TOOLS = [
 ]
 
 
+# Streamed requests send tool inputs as they're generated, so the server doesn't validate them; validate_input does.
+STREAM_TOOLS = [{**t, "eager_input_streaming": True} for t in TOOLS]
+_SCHEMAS = {t["name"]: t["input_schema"] for t in TOOLS}
+_TYPES = {"string": str, "integer": int, "number": (int, float), "boolean": bool}
+
+TOOL_STATUS = {
+    "get_schedule": "Checking your calendar…",
+    "list_todos": "Looking at your to-dos…",
+    "add_todo": "Adding a to-do…",
+    "update_todo": "Updating a to-do…",
+    "list_conversations": "Checking your inbox…",
+    "read_conversation": "Reading the conversation…",
+    "draft_client_reply": "Drafting a reply…",
+    "finance_summary": "Checking the numbers…",
+    "log_money": "Logging it…",
+}
+
+
+def validate_input(name: str, args: object) -> str:
+    """Checks a tool input against its schema. Returns a problem description, or "" when it's fine."""
+    schema = _SCHEMAS.get(name)
+    if schema is None:
+        return f"unknown tool {name}"
+    if not isinstance(args, dict):
+        return "input must be an object"
+    for key in schema["required"]:
+        if key not in args:
+            return f"missing {key}"
+    for key, value in args.items():
+        prop = schema["properties"].get(key)
+        if prop is None:
+            return f"unexpected field {key}"
+        expected = _TYPES[prop["type"]]
+        if not isinstance(value, expected) or (prop["type"] in ("integer", "number") and isinstance(value, bool)):
+            return f"{key} should be a {prop['type']}"
+    return ""
+
+
 def clean_assistant_content(blocks: list[dict]) -> list[dict]:
     """After a refusal fallback, drop model-internal blocks from the declined attempt before replaying them."""
     last_fallback = max((i for i, b in enumerate(blocks) if b.get("type") == "fallback"), default=-1)
@@ -173,6 +211,18 @@ class Assistant:
 
     async def chat(self, chat_id: int, user_text: str) -> dict:
         """Runs one user turn to completion. Returns the reply text and a list of the tools used."""
+        text, used = [], []
+        async for event in self.chat_events(chat_id, user_text):
+            if event["type"] == "text":
+                text.append(event["delta"])
+            elif event["type"] == "done":
+                used = event["tools"]
+        return {"reply": "".join(text).strip(), "tools": used}
+
+    async def chat_events(self, chat_id: int, user_text: str):
+        """Runs one user turn, yielding events as it goes:
+        {"type": "text", "delta"}, {"type": "status", "text"} while a tool runs, and finally {"type": "done", "tools"}.
+        """
         now = datetime.now(hq_settings.tz)
         # The current time goes in the user turn, not the system prompt, so the cached prefix stays stable.
         content = [{"type": "text", "text": f"<now>{now:%A %d %B %Y, %H:%M}</now>\n\n{user_text}"}]
@@ -181,40 +231,77 @@ class Assistant:
             self.store.set_chat_title(chat_id, user_text[:80])
 
         used: list[str] = []
-        for _ in range(MAX_TOOL_ROUNDS):
+        wrote_text = False
+        json_retries = 0
+        rounds = 0
+        while rounds < MAX_TOOL_ROUNDS:
+            rounds += 1
+            separated = False
             try:
-                response = await self.client.beta.messages.create(
+                async with self.client.beta.messages.stream(
                     model=hq_settings.model,
                     max_tokens=16000,
                     system=[{"type": "text", "text": SYSTEM, "cache_control": {"type": "ephemeral"}}],
-                    tools=TOOLS,
+                    tools=STREAM_TOOLS,
                     messages=self.store.chat_messages(chat_id),
                     cache_control={"type": "ephemeral"},
                     output_config={"effort": hq_settings.effort},
                     betas=["server-side-fallback-2026-07-01"],
                     fallbacks="default",
-                )
+                ) as stream:
+                    async for event in stream:
+                        if event.type == "text" and event.text:
+                            if wrote_text and not separated:
+                                yield {"type": "text", "delta": "\n\n"}
+                            separated = True
+                            wrote_text = True
+                            yield {"type": "text", "delta": event.text}
+                    response = await stream.get_final_message()
+                json_retries = 0
+            except ValueError:
+                # A tool input the SDK couldn't parse at all. Nothing was saved for this turn, so ask again.
+                json_retries += 1
+                if json_retries > 2:
+                    yield {"type": "text", "delta": "Sorry, something went wrong on my side. Try again."}
+                    break
+                rounds -= 1
+                continue
             except anthropic.APIError as exc:
                 log.exception("Claude API call failed")
-                return {"reply": f"Sorry, I couldn't reach Claude ({type(exc).__name__}). Try again.", "tools": used}
+                yield {"type": "text", "delta": f"Sorry, I couldn't reach Claude ({type(exc).__name__}). Try again."}
+                break
 
-            blocks = clean_assistant_content([b.model_dump(mode="json", by_alias=True, exclude_none=True) for b in response.content])
+            blocks = clean_assistant_content(
+                [b.model_dump(mode="json", by_alias=True, exclude_none=True) for b in response.content])
             self.store.append_message(chat_id, "assistant", blocks)
 
             if response.stop_reason == "refusal":
-                return {"reply": "I can't help with that one.", "tools": used}
+                yield {"type": "text", "delta": "I can't help with that one."}
+                break
             tool_calls = [b for b in blocks if b["type"] == "tool_use"]
+            if response.stop_reason == "max_tokens":
+                # A tool call cut off here may have a truncated input, so never run it.
+                if tool_calls:
+                    self.store.append_message(chat_id, "user", [
+                        {"type": "tool_result", "tool_use_id": c["id"], "is_error": True,
+                         "content": "Cut off before the input was complete. Not run."} for c in tool_calls])
+                yield {"type": "text", "delta": "\n\n(Cut off — ask me to continue.)"}
+                break
             if response.stop_reason != "tool_use" or not tool_calls:
-                text = "\n\n".join(b["text"] for b in blocks if b["type"] == "text").strip()
-                if response.stop_reason == "max_tokens":
-                    text += "\n\n(Cut off — ask me to continue.)"
-                return {"reply": text, "tools": used}
+                break
 
             results = []
             for call in tool_calls:
                 used.append(call["name"])
+                yield {"type": "status", "text": TOOL_STATUS.get(call["name"], "Working…")}
+                args = call.get("input") or {}
+                problem = validate_input(call["name"], args)
+                if problem:
+                    results.append({"type": "tool_result", "tool_use_id": call["id"], "is_error": True,
+                                    "content": f"Invalid input: {problem}. Raw input: {json.dumps(args)}"})
+                    continue
                 try:
-                    output = await self.run_tool(call["name"], call.get("input") or {})
+                    output = await self.run_tool(call["name"], args)
                     results.append({"type": "tool_result", "tool_use_id": call["id"],
                                     "content": json.dumps(output, default=str)})
                 except Exception as exc:
@@ -222,6 +309,7 @@ class Assistant:
                     results.append({"type": "tool_result", "tool_use_id": call["id"], "is_error": True,
                                     "content": f"{type(exc).__name__}: {exc}"})
             self.store.append_message(chat_id, "user", results)
+        else:
+            yield {"type": "text", "delta": "\n\nThat took more steps than I allow in one go. Ask me to carry on."}
 
-        return {"reply": "That took more steps than I allow in one go. Ask me to carry on.", "tools": used}
-
+        yield {"type": "done", "tools": used}

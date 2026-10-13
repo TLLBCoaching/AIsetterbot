@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-AU">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -80,10 +80,9 @@ button, input, textarea, select { font: inherit; color: inherit; }
   padding-bottom: env(safe-area-inset-bottom);
 }
 .tabs button {
-  border: 0; background: none; padding: 8px 0 7px; font-size: 11px; color: var(--muted);
-  display: flex; flex-direction: column; align-items: center; gap: 1px; cursor: pointer;
+  position: relative; border: 0; background: none; padding: 8px 0 7px; font-size: 11px; color: var(--muted);
+  display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer;
 }
-.tabs button span { font-size: 18px; line-height: 1.2; }
 .tabs button.active { color: var(--accent); font-weight: 600; }
 
 .card {
@@ -185,6 +184,118 @@ button:disabled { opacity: .55; cursor: default; }
 .spinner { color: var(--muted); font-size: 14px; padding: 8px 0; }
 details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
 
+/* ---- icons ---- */
+.icon { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.icon.sm { width: 16px; height: 16px; vertical-align: -3px; }
+.icon.star { fill: var(--warn); stroke: var(--warn); margin-right: 4px; }
+.icon.muted { color: var(--muted); }
+.tabs button.active .icon { stroke-width: 2.2; }
+.badge {
+  position: absolute; top: 4px; left: calc(50% + 6px); min-width: 17px; height: 17px; padding: 0 5px;
+  border-radius: 99px; background: var(--bad); color: #fff; font-size: 10px; font-weight: 700; line-height: 17px; text-align: center;
+}
+#refresh { display: grid; place-items: center; }
+#refresh.spin .icon { animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- pull to refresh ---- */
+.ptr { height: 0; overflow: hidden; display: grid; place-items: center; color: var(--muted); font-size: 13px; transition: height .15s; }
+.ptr.ready span::after { content: " · release"; }
+
+/* ---- loading skeleton ---- */
+.skeleton .sk-line { height: 12px; border-radius: 6px; margin: 10px 0; background: linear-gradient(90deg, var(--line) 25%, var(--bg) 50%, var(--line) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* ---- today ---- */
+.greeting { margin: 0 0 12px; font-size: 20px; font-weight: 650; letter-spacing: -.01em; }
+.greeting span { display: block; font-size: 14px; font-weight: 400; color: var(--muted); }
+.hero { padding: 16px; border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.hero-event { padding-bottom: 14px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+.eyebrow.live::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--bad); margin-right: 6px; animation: blink 1.4s infinite; }
+@keyframes blink { 50% { opacity: .3; } }
+.hero-title { font-size: 21px; font-weight: 700; letter-spacing: -.01em; line-height: 1.25; overflow-wrap: anywhere; }
+.countdown { color: var(--text); font-weight: 600; }
+.hero-todos .eyebrow { color: var(--muted); }
+.quick-add { margin-top: 10px; }
+.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.stat-chip {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 9px 6px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0;
+}
+.stat-chip strong { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.stat-chip span { font-size: 12px; color: var(--muted); }
+.stat-chip:active { transform: scale(.97); }
+.clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ---- chips ---- */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  border: 1px solid var(--line); background: var(--card); border-radius: 99px; padding: 6px 12px; font-size: 14px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.chips { position: relative; }
+input.visually-hidden { position: absolute; left: 0; bottom: 0; width: 1px !important; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+.editor .row > * { flex: 0 0 auto; }
+
+/* ---- to-dos ---- */
+.list > li.todo { display: block; padding: 0; }
+.list > li.todo + li.todo { border-top: 1px solid var(--line); }
+.swipe { position: relative; overflow: hidden; }
+.swipe-bg { position: absolute; inset: 0; display: flex; align-items: center; gap: 4px; padding-left: 14px; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; border-radius: 10px; }
+.swipe-fg { position: relative; display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; background: var(--card); touch-action: pan-y; }
+.check { display: grid; place-items: center; color: #fff; }
+.todo-body { all: unset; flex: 1; min-width: 0; cursor: pointer; display: block; }
+.todo-body:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.todo-body .title, .todo-body .meta { display: block; }
+.editor { padding: 2px 0 12px 32px; }
+.hint { margin: -4px 0 10px; }
+button.ghost.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+
+/* ---- clients ---- */
+.pill.subtle { background: var(--line); color: var(--muted); }
+.meta.right { text-align: right; white-space: nowrap; }
+.thread-head { align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.composer textarea.pulse { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { border-color: var(--accent); } }
+button.send { width: 100%; padding: 13px 14px; font-size: 16px; }
+
+/* ---- money ---- */
+.stats.three { grid-template-columns: repeat(3, 1fr); }
+.stats.three .value { font-size: 18px; }
+.up { color: var(--accent); font-weight: 600; }
+.down { color: var(--bad); font-weight: 600; }
+.chart { margin-top: 14px; }
+.chart-readout { font-size: 14px; color: var(--muted); margin-bottom: 6px; min-height: 22px; }
+.chart-readout strong { font-size: 18px; color: var(--text); font-variant-numeric: tabular-nums; }
+.chart-body { display: flex; gap: 6px; }
+.axis { display: flex; flex-direction: column; justify-content: space-between; font-size: 10px; color: var(--muted); text-align: right; height: 120px; padding: 0 0 0; min-width: 44px; font-variant-numeric: tabular-nums; }
+.axis span:nth-child(2) { transform: translateY(0); }
+.chart-plot { position: relative; flex: 1; height: 120px; }
+.gridlines { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
+.gridlines i { border-top: 1px dashed var(--line); }
+.chart-plot .bars { position: absolute; inset: 0; height: auto; margin: 0; }
+.bars button.bar { border: 0; padding: 0; cursor: pointer; flex: 1; background: var(--accent); border-radius: 4px 4px 0 0; opacity: .55; }
+.bars button.bar.partial { opacity: .3; }
+.bars button.bar.sel { opacity: 1; }
+.chart .bar-labels { margin-left: 50px; }
+
+/* ---- ask ---- */
+.chat .status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
+.dots { width: 18px; height: 6px; background: radial-gradient(circle, var(--muted) 2.5px, transparent 3px) 0 0 / 6px 6px repeat-x; animation: dots 1s steps(3) infinite; }
+@keyframes dots { from { width: 6px; } to { width: 24px; } }
+.chat-input { align-items: flex-end; flex-wrap: nowrap; }
+.chat-input textarea { min-height: 44px; resize: none; }
+.icon-btn.mic { width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); display: grid; place-items: center; }
+.icon-btn.mic.on { color: #fff; background: var(--bad); border-color: var(--bad); animation: blink 1.2s infinite; }
+.chat .suggestions { margin-top: 4px; }
+
+/* ---- toast ---- */
+.toast { display: flex; align-items: center; gap: 14px; }
+.toast-undo { border: 0; background: none; color: var(--accent-soft); font-weight: 700; cursor: pointer; padding: 0; }
+.day-head.now { color: var(--accent); }
+
 .demo-banner{background:var(--warn-soft);color:var(--warn);font-size:13px;text-align:center;padding:6px 16px;}
 </style>
 </head>
@@ -201,18 +312,19 @@ details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
 
   <div id="app" hidden>
     <div class="demo-banner">Demo with made-up data. Nothing here is real or sent anywhere.</div>
+    <div id="ptr" class="ptr" aria-hidden="true"><span>↓ Pull to refresh</span></div>
     <header class="topbar">
       <h1 id="view-title">Today</h1>
-      <button id="refresh" class="icon-btn" aria-label="Refresh">↻</button>
+      <button id="refresh" class="icon-btn" aria-label="Refresh"></button>
     </header>
     <main id="view" class="view"></main>
     <nav class="tabs" aria-label="Sections">
-      <button data-tab="today" class="active"><span>☀︎</span>Today</button>
-      <button data-tab="calendar"><span>▦</span>Calendar</button>
-      <button data-tab="todos"><span>✓</span>To-dos</button>
-      <button data-tab="clients"><span>✉︎</span>Clients</button>
-      <button data-tab="money"><span>$</span>Money</button>
-      <button data-tab="ask"><span>✦</span>Ask</button>
+      <button data-tab="today" class="active">Today</button>
+      <button data-tab="calendar">Calendar</button>
+      <button data-tab="todos">To-dos</button>
+      <button data-tab="clients">Clients<span id="clients-badge" class="badge" hidden></span></button>
+      <button data-tab="money">Money</button>
+      <button data-tab="ask">Ask</button>
     </nav>
   </div>
 
@@ -233,7 +345,10 @@ details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
 
   const events = [];
   for (let i = 0; i < 14; i++) events.push({ title: "Morning training", start: at(i, "06:00"), end: at(i, "07:00"), all_day: false, location: "" });
-  events.push({ title: "Sales call – Mark", start: at(0, "11:30"), end: at(0, "12:15"), all_day: false, location: "Zoom" });
+  // A call 40 minutes from now, so the "Up next" card always has something to show in the demo.
+  const hm = (ms) => new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(ms));
+  const soon = Date.now() + 40 * 60000;
+  if (hm(soon) > hm(Date.now())) events.push({ title: "Sales call – Mark", start: at(0, hm(soon)), end: at(0, hm(soon + 45 * 60000) > hm(soon) ? hm(soon + 45 * 60000) : "23:59"), all_day: false, location: "Zoom" });
   events.push({ title: "Client check-ins", start: at(0, "15:00"), end: at(0, "16:30"), all_day: false, location: "" });
   events.push({ title: "Content shoot", start: at(1, "14:00"), end: at(1, "16:00"), all_day: false, location: "Studio" });
   events.push({ title: "Team meeting", start: at(3, "09:00"), end: at(3, "09:45"), all_day: false, location: "Google Meet" });
@@ -271,7 +386,7 @@ details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
   });
   const failed = [{ date: day(-1), amount: 249, customer: "Tom Baker", reason: "The bank declined the payment." }];
   const stripe = () => ({ configured: true, currency: "AUD", balance_available: 18432.5, balance_pending: 4120, active_subscriptions: 37,
-    this_week: 1450, this_month: 4780, last_month: 13240, weekly, failed, as_of: at(0, new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(new Date())) });
+    this_week: 1450, this_month: 4780, last_month: 13240, last_month_to_date: 4210, weekly, failed, as_of: at(0, new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(new Date())) });
 
   const sortTodos = (list) => list.slice().sort((a, b) => (a.done - b.done) || ((a.due === null) - (b.due === null)) || String(a.due).localeCompare(String(b.due)) || (b.priority - a.priority) || (a.id - b.id));
   const summary = (c) => { const { messages, ...rest } = c; return rest; };
@@ -286,7 +401,16 @@ details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
     [/week|plan/i, () => "Suggested week:\n\n• Today: reels + Tom's payment\n• Tomorrow: content shoot 2–4pm\n• Sat: Sarah's meal plan (due then)\n• Mon: review ad spend\n\nWant me to add any of these as to-dos?"],
   ];
 
-  const json = (data, status = 200) => Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(data) });
+  const json = (data, status = 200) => Promise.resolve(new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } }));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Streams events one per line, like the real /api/chat/stream.
+  const ndjson = (producer) => new Response(new ReadableStream({
+    async start(controller) {
+      const enc = new TextEncoder();
+      await producer(async (ev) => controller.enqueue(enc.encode(JSON.stringify(ev) + "\n")));
+      controller.close();
+    },
+  }), { status: 200, headers: { "Content-Type": "application/x-ndjson" } });
   const delay = (ms, v) => new Promise((r) => setTimeout(() => r(v), ms));
 
   window.fetch = async function (url, opts = {}) {
@@ -341,6 +465,29 @@ details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
     if ((m = path.match(/^\/api\/money\/(\d+)$/))) { money = money.filter((e) => e.id !== Number(m[1])); return json({ ok: true }); }
     if (path === "/api/chat" && method === "GET") return json({ chat_id: 1, messages: chat });
     if (path === "/api/chat/new") { chat.length = 0; return json({ chat_id: 1 }); }
+    if (path === "/api/chat/stream" && method === "POST") {
+      const add = body.message.match(/(?:add|remind me to)\s+(.+)/i);
+      const hit = replies.find(([re]) => re.test(body.message));
+      return ndjson(async (emit) => {
+        let reply, tools = [];
+        if (add) {
+          await emit({ type: "status", text: "Adding a to-do…" }); await sleep(700);
+          const tomorrow = /tomorrow/i.test(add[1]);
+          const t = { id: nextId++, title: add[1].replace(/\s+tomorrow$/i, ""), notes: "", due: tomorrow ? day(1) : day(0), area: "business", priority: 0, done: false, url: "https://app.asana.com/" };
+          todos.push(t); tools = ["add_todo"];
+          reply = `Added "${t.title}" for ${tomorrow ? "tomorrow" : "today"}.`;
+        } else if (hit) {
+          await emit({ type: "status", text: "Checking your calendar…" }); await sleep(600);
+          await emit({ type: "status", text: "Looking at your to-dos…" }); await sleep(500);
+          tools = ["get_schedule", "list_todos"]; reply = hit[1]();
+        } else {
+          reply = "In the real app I'd look this up across your calendar, to-dos, inbox and Stripe. This demo only has a few canned answers. Try \"what's my day look like?\" or \"add call Jake tomorrow\".";
+        }
+        for (const word of reply.match(/\S+\s*/g)) { await emit({ type: "text", delta: word }); await sleep(25); }
+        chat.push({ role: "user", text: body.message }, { role: "assistant", text: reply });
+        await emit({ type: "done", tools });
+      });
+    }
     if (path === "/api/chat" && method === "POST") {
       const add = body.message.match(/(?:add|remind me to)\s+(.+)/i);
       let reply, tools = [];
@@ -380,6 +527,34 @@ function h(tag, attrs = {}, ...children) {
   return el;
 }
 
+// Line icons (24px grid, stroke-based).
+const ICONS = {
+  today: ["M12 3v2", "M12 19v2", "M5.6 5.6l1.4 1.4", "M17 17l1.4 1.4", "M3 12h2", "M19 12h2", "M5.6 18.4L7 17", "M17 7l1.4-1.4", "M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z"],
+  calendar: ["M4 6h16v14H4z", "M4 10h16", "M8 3v4", "M16 3v4"],
+  todos: ["M4 6h2", "M4 12h2", "M4 18h2", "M9 6h11", "M9 12h11", "M9 18h11"],
+  clients: ["M4 5h16v11H8l-4 4z"],
+  money: ["M3 7h18v10H3z", "M12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z", "M6 12h.01", "M18 12h.01"],
+  ask: ["M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z", "M19 16l.7 1.8L21.5 18.5l-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z"],
+  refresh: ["M20 11a8 8 0 1 0-2.3 5.7", "M20 4v7h-7"],
+  star: ["M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"],
+  mic: ["M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z", "M5 11a7 7 0 0 0 14 0", "M12 18v3"],
+  check: ["M5 12.5l4.5 4.5L19 7.5"],
+  chevron: ["M9 6l6 6-6 6"],
+};
+function icon(name, cls = "icon") {
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", cls);
+  svg.setAttribute("aria-hidden", "true");
+  for (const d of ICONS[name] || []) {
+    const p = document.createElementNS(NS, "path");
+    p.setAttribute("d", d);
+    svg.append(p);
+  }
+  return svg;
+}
+
 async function api(path, opts = {}) {
   const res = await fetch(path, {
     method: opts.method || "GET",
@@ -393,12 +568,13 @@ async function api(path, opts = {}) {
   return data;
 }
 
-function toast(msg) {
+function toast(msg, undo) {
   const t = $("#toast");
-  t.textContent = msg;
+  t.replaceChildren(h("span", {}, msg));
+  if (undo) t.append(h("button", { class: "toast-undo", onclick: () => { t.hidden = true; undo(); } }, "Undo"));
   t.hidden = false;
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => (t.hidden = true), 2800);
+  toast._t = setTimeout(() => (t.hidden = true), undo ? 5000 : 2800);
 }
 
 const money = (n) => (n === null || n === undefined) ? "—" :
@@ -411,6 +587,10 @@ function addDays(iso, n) {
   const d = new Date(iso + "T12:00:00Z");
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
+}
+function nextMonday(iso) {
+  const dow = new Date(iso + "T12:00:00Z").getUTCDay(); // 0 = Sunday
+  return addDays(iso, ((8 - dow) % 7) || 7);
 }
 function dayLabel(iso) {
   const t = todayISO();
@@ -433,9 +613,41 @@ function ago(iso) {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
 }
+function untilText(ms) {
+  const mins = Math.round(ms / 60000);
+  if (mins <= 0) return "now";
+  if (mins < 60) return `in ${mins} min`;
+  const hrs = Math.floor(mins / 60), rest = mins % 60;
+  return rest ? `in ${hrs}h ${rest}m` : `in ${hrs}h`;
+}
 const notConnected = (what, how) => h("div", { class: "empty" }, `${what} isn't connected yet. ${how}`);
-const loading = () => h("div", { class: "spinner" }, "Loading…");
 const errorBox = (e) => h("div", { class: "error small" }, e.message || String(e));
+const skeleton = () => [1, 2, 3].map((n) => h("div", { class: "card skeleton" },
+  h("div", { class: "sk-line", style: "width:35%" }), h("div", { class: "sk-line" }), h("div", { class: "sk-line", style: `width:${50 + n * 10}%` })));
+const isClientTag = (tags) => (tags || []).some((t) => /client/i.test(t));
+
+// ---------- data cache ----------
+// Screens show what they last loaded straight away, then refresh quietly in the background.
+
+const cache = new Map();
+function loader(useCache) {
+  const state = { usedCache: false };
+  state.load = async (path) => {
+    if (useCache && cache.has(path)) { state.usedCache = true; return cache.get(path); }
+    const data = await api(path);
+    cache.set(path, data);
+    if (path === "/api/today") setBadge((data.unread.conversations || []).length);
+    if (path === "/api/inbox?unread=false") setBadge(data.conversations.filter((c) => c.unread).length);
+    return data;
+  };
+  return state;
+}
+
+function setBadge(n) {
+  const b = $("#clients-badge");
+  b.textContent = n > 9 ? "9+" : String(n);
+  b.hidden = !n;
+}
 
 // ---------- shared pieces ----------
 
@@ -451,50 +663,190 @@ function eventList(events) {
   )));
 }
 
-function todoItem(t, onChange) {
+// Quick date choice: Today / Tomorrow / Next week / Someday, or pick a date.
+function datePicker(initial, onChange) {
+  let value = initial || null;
+  const iso = todayISO();
+  const options = [["Today", iso], ["Tomorrow", addDays(iso, 1)], ["Next week", nextMonday(iso)], ["Someday", null]];
+  const native = h("input", { type: "date", class: "visually-hidden", tabindex: "-1", "aria-hidden": "true" });
+  const wrap = h("div", { class: "chips", role: "group", "aria-label": "Due date" });
+  function paint() {
+    const picked = value && !options.some(([, v]) => v === value);
+    wrap.replaceChildren(
+      ...options.map(([label, v]) => h("button", {
+        type: "button", class: "chip" + (value === v ? " on" : ""), "aria-pressed": value === v ? "true" : "false",
+        onclick: () => { value = v; paint(); onChange && onChange(value); },
+      }, label)),
+      h("button", {
+        type: "button", class: "chip" + (picked ? " on" : ""),
+        onclick: () => { native.value = value || iso; native.showPicker ? native.showPicker() : native.click(); },
+      }, picked ? dayLabel(value) : "Pick…"),
+      native,
+    );
+  }
+  native.addEventListener("change", () => { if (native.value) { value = native.value; paint(); onChange && onChange(value); } });
+  paint();
+  return { el: wrap, get: () => value };
+}
+
+const ASANA = (t) => t.url && t.url.startsWith("https://app.asana.com/");
+
+async function patchTodo(t, body, after) {
+  await api(`/api/todos/${t.id}`, { method: "PATCH", body });
+  after();
+}
+
+async function completeTodo(t, after) {
+  await patchTodo(t, { done: true }, after);
+  toast("Done ✓", () => patchTodo(t, { done: false }, after));
+}
+
+function todoEditor(t, after) {
+  const title = h("input", { type: "text", value: t.title, "aria-label": "Title" });
+  const notes = h("input", { type: "text", value: t.notes || "", placeholder: "Notes" });
+  const due = datePicker(t.due);
+  let star = !!t.priority;
+  const starBtn = h("button", { type: "button", class: "chip" + (star ? " on" : ""), onclick: () => { star = !star; starBtn.classList.toggle("on", star); } }, icon("star", "icon sm"), " Important");
+  return h("form", {
+    class: "editor stack",
+    onsubmit: async (ev) => {
+      ev.preventDefault();
+      if (!title.value.trim()) return;
+      await patchTodo(t, { title: title.value.trim(), notes: notes.value, due: due.get() || "", priority: star ? 1 : 0 }, after);
+      toast("Saved");
+    },
+  },
+    title, notes, due.el,
+    h("div", { class: "row", style: "align-items:center" },
+      starBtn,
+      ASANA(t) ? h("a", { href: t.url, target: "_blank", rel: "noopener", class: "link-btn small", style: "flex:0 0 auto" }, "Open in Asana ↗") : null,
+      h("span", { style: "flex:1" }),
+      h("button", {
+        type: "button", class: "ghost danger", style: "flex:0 0 auto",
+        onclick: async () => {
+          if (!confirm(`Delete "${t.title}"${ASANA(t) ? " from Asana" : ""}?`)) return;
+          await api(`/api/todos/${t.id}`, { method: "DELETE" });
+          toast("Deleted");
+          after();
+        },
+      }, "Delete"),
+      h("button", { type: "submit", class: "primary", style: "flex:0 0 auto" }, "Save"),
+    ),
+  );
+}
+
+// A to-do row: tap the circle or swipe right to complete, tap the text to edit.
+function todoItem(t, after) {
   const iso = todayISO();
   let due = null;
   if (t.due) {
     const cls = t.due < iso ? "pill bad" : t.due === iso ? "pill warn" : "pill";
     due = h("span", { class: cls }, t.due < iso ? `Overdue · ${dayLabel(t.due)}` : dayLabel(t.due));
   }
-  return h("li", {},
+  const li = h("li", { class: "todo" });
+  const fg = h("div", { class: "swipe-fg" },
     h("button", {
       class: "check" + (t.done ? " done" : ""), "aria-label": t.done ? "Mark not done" : "Mark done",
-      onclick: async () => {
-        await api(`/api/todos/${t.id}`, { method: "PATCH", body: { done: !t.done } });
-        if (!t.done) toast("Done ✓");
-        onChange();
-      },
-    }),
-    h("div", { class: "grow" },
-      h("div", { class: "title" + (t.done ? " done-text" : "") }, t.priority ? "★ " : "", t.title),
-      h("div", { class: "meta" }, due, " ", t.area, t.notes ? ` · ${t.notes}` : "",
-        t.url && t.url.startsWith("https://app.asana.com/") ? [" · ", h("a", { href: t.url, target: "_blank", rel: "noopener", class: "link-btn small" }, "Asana ↗")] : null),
-    ),
+      onclick: () => (t.done ? patchTodo(t, { done: false }, after) : completeTodo(t, after)),
+    }, t.done ? icon("check", "icon sm") : null),
     h("button", {
-      class: "icon-btn small", "aria-label": "Delete",
-      onclick: async () => { if (confirm(`Delete "${t.title}"${t.url ? " from Asana" : ""}?`)) { await api(`/api/todos/${t.id}`, { method: "DELETE" }); onChange(); } },
-    }, "×"),
+      class: "grow todo-body", "aria-expanded": "false",
+      onclick: () => {
+        const open = li.querySelector(".editor");
+        if (open) { open.remove(); return; }
+        li.append(todoEditor(t, after));
+        li.querySelector(".editor input").focus();
+      },
+    },
+      h("span", { class: "title" + (t.done ? " done-text" : "") }, t.priority ? icon("star", "icon sm star") : null, t.title),
+      h("span", { class: "meta" }, due, due ? " " : "", t.area, t.notes ? ` · ${t.notes}` : ""),
+    ),
   );
+  li.append(h("div", { class: "swipe" }, h("div", { class: "swipe-bg" }, icon("check", "icon sm"), " Done"), fg));
+  if (!t.done) enableSwipe(fg, () => completeTodo(t, after));
+  return li;
+}
+
+function enableSwipe(el, onDone) {
+  let x0 = null, y0 = 0, dx = 0, dragging = false;
+  el.addEventListener("pointerdown", (e) => { if (e.pointerType === "mouse") return; x0 = e.clientX; y0 = e.clientY; dx = 0; dragging = false; });
+  el.addEventListener("pointermove", (e) => {
+    if (x0 === null) return;
+    dx = e.clientX - x0;
+    const dy = e.clientY - y0;
+    if (!dragging && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.5) { dragging = true; el.setPointerCapture(e.pointerId); }
+    if (dragging) el.style.transform = `translateX(${Math.max(0, Math.min(dx, 140))}px)`;
+  });
+  const end = () => {
+    if (x0 === null) return;
+    x0 = null;
+    el.style.transition = "transform .18s ease";
+    el.style.transform = dragging && dx > 90 ? "translateX(100%)" : "";
+    setTimeout(() => (el.style.transition = ""), 200);
+    if (dragging && dx > 90) setTimeout(onDone, 160);
+    if (dragging) el.addEventListener("click", (ev) => { ev.stopPropagation(); ev.preventDefault(); }, { capture: true, once: true });
+  };
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
+}
+
+function quickAdd(after) {
+  const input = h("input", { type: "text", placeholder: "Add a to-do…", "aria-label": "New to-do", enterkeyhint: "done" });
+  const due = datePicker(todayISO());
+  return h("form", {
+    class: "stack quick-add",
+    onsubmit: async (ev) => {
+      ev.preventDefault();
+      if (!input.value.trim()) return;
+      await api("/api/todos", { method: "POST", body: { title: input.value.trim(), due: due.get(), area: "business" } });
+      input.value = "";
+      toast("Added");
+      after();
+    },
+  }, h("div", { class: "row" }, input, h("button", { class: "secondary", type: "submit", style: "flex:0 0 auto" }, "Add")), due.el);
 }
 
 function conversationItem(c) {
   return h("li", { class: "clickable", onclick: () => go("clients", c.id) },
     h("div", { class: "grow" },
-      h("div", { class: "title" }, c.name, " ", c.unread ? h("span", { class: "pill" }, `${c.unread} new`) : null),
+      h("div", { class: "title" }, c.name, " ",
+        h("span", { class: "pill subtle" }, isClientTag(c.tags) ? "Client" : "Lead"), " ",
+        c.unread ? h("span", { class: "pill" }, `${c.unread} new`) : null),
       h("div", { class: "meta" }, c.last_direction === "outbound" ? "You: " : "", c.last_message || "(no text)"),
     ),
-    h("div", { class: "meta" }, c.channel, h("br"), ago(c.last_message_at)),
+    h("div", { class: "meta right" }, c.channel, h("br"), ago(c.last_message_at)),
   );
 }
+
+const statChip = (value, label, tab) => h("button", { class: "stat-chip", onclick: () => go(tab) }, h("strong", {}, value), h("span", {}, label));
 
 // ---------- views ----------
 
 const views = {};
 
-views.today = async () => {
-  const d = await api("/api/today");
+function upNext(events) {
+  const now = Date.now();
+  const timed = events.filter((e) => !e.all_day && Date.parse(e.end) > now).sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+  const e = timed[0];
+  if (!e) return h("div", { class: "hero-event" }, h("div", { class: "eyebrow" }, "Up next"), h("div", { class: "hero-title" }, "Nothing else today"), h("div", { class: "meta" }, "Your calendar is clear."));
+  const live = Date.parse(e.start) <= now;
+  const when = h("span", { class: "countdown", "data-start": e.start, "data-end": e.end });
+  updateCountdown(when);
+  return h("div", { class: "hero-event" },
+    h("div", { class: "eyebrow" + (live ? " live" : "") }, live ? "Happening now" : "Up next"),
+    h("div", { class: "hero-title" }, e.title),
+    h("div", { class: "meta" }, `${clock(e.start)}–${clock(e.end)}`, " · ", when, e.location ? ` · ${e.location}` : ""),
+  );
+}
+
+function updateCountdown(el) {
+  const start = Date.parse(el.dataset.start), end = Date.parse(el.dataset.end), now = Date.now();
+  el.textContent = start <= now ? `until ${clock(el.dataset.end)} (${untilText(end - now).replace("in ", "")} left)` : untilText(start - now);
+}
+setInterval(() => document.querySelectorAll(".countdown").forEach(updateCountdown), 30000);
+
+views.today = async (_arg, { load }) => {
+  const d = await load("/api/today");
   const iso = d.date;
   // The feed covers today and tomorrow; anything that starts on or before today is on today.
   const todayEvents = d.events.events.filter((e) => e.start.slice(0, 10) <= iso);
@@ -502,34 +854,41 @@ views.today = async () => {
   const unread = d.unread.conversations || [];
   const hour = Number(new Intl.DateTimeFormat("en-AU", { hour: "numeric", hourCycle: "h23", timeZone: me.timezone }).format(new Date()));
   const greeting = hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : "Evening";
+  const top = [...d.todos_due, ...d.todos_important].slice(0, 3);
+  const more = d.todos_due.length + d.todos_important.length - top.length;
+  const refresh = () => render({ fresh: true });
 
   return [
-    h("p", { class: "muted", style: "margin:0 0 12px" },
-      `${greeting} Alistair. ${new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: me.timezone })}.`),
-    h("div", { class: "stats", style: "margin-bottom:12px" },
-      h("div", { class: "stat" }, h("div", { class: "label" }, "On today"), h("div", { class: "value" }, d.events.configured ? todayEvents.filter((e) => !e.all_day).length : "—"), h("div", { class: "sub" }, "events")),
-      h("div", { class: "stat" }, h("div", { class: "label" }, "Due / overdue"), h("div", { class: "value" }, d.todos_due.length), h("div", { class: "sub" }, `${d.open_todos} open in total`)),
-      h("div", { class: "stat" }, h("div", { class: "label" }, "Unread chats"), h("div", { class: "value" }, d.unread.configured ? unread.length : "—"), h("div", { class: "sub" }, d.drafts.length ? `${d.drafts.length} draft(s) waiting` : "in GoHighLevel")),
-      h("div", { class: "stat" }, h("div", { class: "label" }, "Collected this week"), h("div", { class: "value" }, d.money.configured ? money(d.money.this_week) : "—"), h("div", { class: "sub" }, d.money.configured ? `${money(d.money.this_month)} this month` : "Stripe not connected")),
+    h("p", { class: "greeting" }, `${greeting} Alistair`,
+      h("span", {}, new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: me.timezone }))),
+    h("div", { class: "card hero" },
+      d.events.configured ? upNext(todayEvents) : notConnected("Your calendar", "Add HQ_CALENDAR_ICS_URLS."),
+      h("div", { class: "hero-todos" },
+        h("div", { class: "eyebrow" }, "Top priorities"),
+        top.length ? h("ul", { class: "list" }, top.map((t) => todoItem(t, refresh))) : h("div", { class: "empty" }, "Nothing urgent. Nice."),
+        more > 0 ? h("button", { class: "link-btn small", onclick: () => go("todos") }, `See ${more} more →`) : null,
+        quickAdd(refresh),
+      ),
     ),
-    h("div", { class: "card" }, h("h2", {}, "Schedule"),
-      d.events.configured ? eventList(todayEvents) : notConnected("Your calendar", "Add HQ_CALENDAR_ICS_URLS."),
-      d.events.errors ? h("div", { class: "error small" }, "One of your calendars didn't load.") : null,
-      tomorrowEvents.length ? h("details", { style: "margin-top:8px" }, h("summary", {}, `Tomorrow · ${tomorrowEvents.length} event(s)`), eventList(tomorrowEvents)) : null,
-    ),
-    h("div", { class: "card" }, h("h2", {}, "To do today ", h("span", { class: "count" }, d.todos_due.length || "")),
-      d.todos_due.length ? h("ul", { class: "list" }, d.todos_due.map((t) => todoItem(t, render))) : h("div", { class: "empty" }, "Nothing due. "),
-      d.todos_important.length ? [h("h2", { style: "margin-top:12px" }, "Important, no rush"), h("ul", { class: "list" }, d.todos_important.map((t) => todoItem(t, render)))] : null,
-      quickAdd(render),
+    h("div", { class: "stat-row" },
+      d.events.configured ? statChip(todayEvents.filter((e) => !e.all_day).length, "events", "calendar") : null,
+      statChip(d.todos_due.length, "due", "todos"),
+      d.unread.configured ? statChip(unread.length, "unread", "clients") : null,
+      d.money.configured && !d.money.error ? statChip(money(d.money.this_week), "this week", "money") : null,
     ),
     d.drafts.length ? h("div", { class: "card" }, h("h2", {}, "Reply drafts waiting for you"),
       h("ul", { class: "list" }, d.drafts.map((dr) => h("li", { class: "clickable", onclick: () => go("clients", dr.conversation_id) },
-        h("div", { class: "grow" }, h("div", { class: "title" }, dr.contact_name), h("div", { class: "meta" }, dr.text)))))) : null,
+        h("div", { class: "grow" }, h("div", { class: "title" }, dr.contact_name), h("div", { class: "meta clamp" }, dr.text)), icon("chevron", "icon sm muted"))))) : null,
     h("div", { class: "card" }, h("h2", {}, "Unread messages"),
       !d.unread.configured ? notConnected("Your inbox", "Add GHL_API_TOKEN and GHL_LOCATION_ID.")
         : d.unread.error ? h("div", { class: "error small" }, d.unread.error)
         : unread.length ? h("ul", { class: "list" }, unread.map(conversationItem)) : h("div", { class: "empty" }, "Inbox zero 🙌"),
     ),
+    d.events.configured ? h("div", { class: "card" }, h("h2", {}, "Rest of today"),
+      eventList(todayEvents),
+      d.events.errors ? h("div", { class: "error small" }, "One of your calendars didn't load.") : null,
+      tomorrowEvents.length ? h("details", { style: "margin-top:8px" }, h("summary", {}, `Tomorrow · ${tomorrowEvents.length} event(s)`), eventList(tomorrowEvents)) : null,
+    ) : null,
     d.money.failed && d.money.failed.length ? h("div", { class: "card" }, h("h2", {}, "Failed payments"),
       h("ul", { class: "list" }, d.money.failed.slice(0, 5).map((f) => h("li", {},
         h("div", { class: "grow" }, h("div", { class: "title" }, f.customer || "Unknown customer"), h("div", { class: "meta" }, `${dayLabel(f.date)} · ${f.reason}`)),
@@ -537,26 +896,11 @@ views.today = async () => {
   ];
 };
 
-function quickAdd(after, defaults = {}) {
-  const input = h("input", { type: "text", placeholder: "Add a to-do…", "aria-label": "New to-do" });
-  const due = h("input", { type: "date", value: defaults.due || todayISO(), "aria-label": "Due date" });
-  return h("form", {
-    class: "stack", style: "margin-top:10px",
-    onsubmit: async (ev) => {
-      ev.preventDefault();
-      if (!input.value.trim()) return;
-      await api("/api/todos", { method: "POST", body: { title: input.value.trim(), due: due.value || null, area: defaults.area || "business" } });
-      input.value = "";
-      after();
-    },
-  }, input, h("div", { class: "row" }, due, h("button", { class: "secondary", type: "submit", style: "flex:0 0 auto" }, "Add")));
-}
-
 let calStart = null;
-views.calendar = async () => {
+views.calendar = async (_arg, { load }) => {
   calStart = calStart || todayISO();
   const days = 7;
-  const d = await api(`/api/calendar?start=${calStart}&days=${days}`);
+  const d = await load(`/api/calendar?start=${calStart}&days=${days}`);
   if (!d.configured) return h("div", { class: "card" }, notConnected("Your calendar", "Add one or more private iCal links to HQ_CALENDAR_ICS_URLS."));
   const byDay = {};
   for (let i = 0; i < days; i++) byDay[addDays(calStart, i)] = [];
@@ -575,14 +919,14 @@ views.calendar = async () => {
       h("button", { onclick: () => { calStart = addDays(calStart, 7); render(); } }, "Next →"),
     ),
     d.errors ? h("div", { class: "error small" }, "One of your calendars didn't load.") : null,
-    h("div", { class: "card" }, Object.entries(byDay).map(([day, evs]) => [h("div", { class: "day-head" }, dayLabel(day)), eventList(evs)])),
+    h("div", { class: "card" }, Object.entries(byDay).map(([day, evs]) => [h("div", { class: "day-head" + (day === todayISO() ? " now" : "") }, dayLabel(day)), eventList(evs)])),
     h("p", { class: "muted small" }, "Read-only. Add or change events in Google Calendar."),
   ];
 };
 
 let todoFilter = "open";
-views.todos = async () => {
-  const todos = await api(`/api/todos?include_done=${todoFilter === "done"}`);
+views.todos = async (_arg, { load }) => {
+  const todos = await load(`/api/todos?include_done=${todoFilter === "done"}`);
   const iso = todayISO();
   const shown = todoFilter === "done" ? todos.filter((t) => t.done) : todos;
   const groups = todoFilter === "done" ? [["Done", shown]] : [
@@ -591,37 +935,25 @@ views.todos = async () => {
     ["Upcoming", shown.filter((t) => t.due && t.due > iso)],
     ["Someday", shown.filter((t) => !t.due)],
   ];
-  const area = h("select", { "aria-label": "Area" }, ["business", "clients", "content", "personal", "health", "home"].map((a) => h("option", { value: a }, a)));
-  const title = h("input", { type: "text", placeholder: "What needs doing?", required: true });
-  const due = h("input", { type: "date", "aria-label": "Due date" });
-  const important = h("input", { type: "checkbox", id: "imp" });
+  const refresh = () => render({ fresh: true });
   return [
-    h("form", {
-      class: "card stack",
-      onsubmit: async (ev) => {
-        ev.preventDefault();
-        await api("/api/todos", { method: "POST", body: { title: title.value.trim(), due: due.value || null, area: area.value, priority: important.checked ? 1 : 0 } });
-        toast("Added");
-        render();
-      },
-    }, title, h("div", { class: "row" }, due, area), h("div", { class: "row", style: "align-items:center" },
-      h("label", { for: "imp", class: "small", style: "display:flex;gap:6px;align-items:center" }, important, "Important"),
-      h("button", { class: "primary", type: "submit", style: "flex:0 0 auto" }, "Add to-do"))),
+    h("div", { class: "card" }, quickAdd(refresh)),
     h("div", { class: "segmented" },
       ["open", "done"].map((f) => h("button", { class: todoFilter === f ? "active" : "", onclick: () => { todoFilter = f; render(); } }, f === "open" ? "Open" : "Done"))),
-    me.connected.asana ? h("p", { class: "muted small", style: "margin:-4px 0 10px" },
-      todoFilter === "done" ? "Completed in Asana in the last 14 days." : "Synced with your Asana My Tasks. Changes here happen in Asana too.") : null,
+    h("p", { class: "muted small hint" },
+      todoFilter === "done" ? (me.connected.asana ? "Completed in Asana in the last 14 days." : "")
+        : `Swipe right or tap the circle to complete. Tap a to-do to edit or reschedule.${me.connected.asana ? " Synced with your Asana My Tasks." : ""}`),
     groups.filter(([, items]) => items.length).map(([name, items]) =>
-      h("div", { class: "card" }, h("h2", {}, name, " ", h("span", { class: "count" }, items.length)), h("ul", { class: "list" }, items.map((t) => todoItem(t, render))))),
+      h("div", { class: "card" }, h("h2", {}, name, " ", h("span", { class: "count" }, items.length)), h("ul", { class: "list" }, items.map((t) => todoItem(t, refresh))))),
     shown.length ? null : h("div", { class: "empty" }, todoFilter === "done" ? "Nothing completed yet." : "All clear."),
   ];
 };
 
 let inboxFilter = "all";
-views.clients = async (conversationId) => {
-  if (conversationId) return threadView(conversationId);
+views.clients = async (conversationId, { load }) => {
+  if (conversationId) return threadView(conversationId, load);
   if (!me.connected.inbox) return h("div", { class: "card" }, notConnected("Your GoHighLevel inbox", "Add GHL_API_TOKEN and GHL_LOCATION_ID."));
-  const d = await api(`/api/inbox?unread=${inboxFilter === "unread"}`);
+  const d = await load(`/api/inbox?unread=${inboxFilter === "unread"}`);
   return [
     h("div", { class: "segmented" },
       ["all", "unread"].map((f) => h("button", { class: inboxFilter === f ? "active" : "", onclick: () => { inboxFilter = f; render(); } }, f === "all" ? "All" : "Unread"))),
@@ -629,66 +961,111 @@ views.clients = async (conversationId) => {
   ];
 };
 
-async function threadView(id) {
-  const c = await api(`/api/inbox/${encodeURIComponent(id)}`);
+const QUICK_PROMPTS = [
+  ["Check in", "Friendly check-in on how they're going"],
+  ["Encourage", "Encourage them and keep them motivated"],
+  ["Reschedule", "Agree to reschedule and offer a time"],
+  ["Book a call", "Suggest a quick call and ask what time suits"],
+];
+
+async function threadView(id, load) {
+  const c = await load(`/api/inbox/${encodeURIComponent(id)}`);
   $("#view-title").textContent = c.name;
-  const box = h("textarea", { placeholder: c.send_type ? `Reply on ${c.channel}…` : "", value: c.draft ? c.draft.text : "" });
-  const instructions = h("input", { type: "text", placeholder: "Optional: what should the reply say?" });
+  const box = h("textarea", { placeholder: c.send_type ? `Reply on ${c.channel}…` : "", value: c.draft ? c.draft.text : "", rows: 3 });
+  const instructions = h("input", { type: "text", placeholder: "Or tell Claude what to say…" });
   let draftId = c.draft ? c.draft.id : null;
 
-  const draftBtn = h("button", {
-    class: "secondary", type: "button",
-    onclick: async () => {
-      draftBtn.disabled = true; draftBtn.textContent = "Drafting…";
-      try {
-        const dr = await api(`/api/inbox/${encodeURIComponent(id)}/draft`, { method: "POST", body: { instructions: instructions.value } });
-        box.value = dr.text; draftId = dr.id;
-      } catch (e) { toast(e.message); }
-      draftBtn.disabled = false; draftBtn.textContent = "✦ Draft with Claude";
-    },
-  }, "✦ Draft with Claude");
+  async function draft(text) {
+    if (text !== undefined) instructions.value = text;
+    draftBtn.disabled = true; draftBtn.textContent = "Drafting…";
+    box.classList.add("pulse");
+    try {
+      const dr = await api(`/api/inbox/${encodeURIComponent(id)}/draft`, { method: "POST", body: { instructions: instructions.value } });
+      box.value = dr.text; draftId = dr.id;
+    } catch (e) { toast(e.message); }
+    box.classList.remove("pulse");
+    draftBtn.disabled = false; draftBtn.textContent = "✦ Draft";
+  }
+  const draftBtn = h("button", { class: "secondary", type: "button", style: "flex:0 0 auto", onclick: () => draft() }, "✦ Draft");
 
   const sendBtn = h("button", {
-    class: "primary", type: "button",
+    class: "primary send", type: "button",
     onclick: async () => {
       const text = box.value.trim();
-      if (!text) return;
+      if (!text) { toast("Write or draft a reply first"); return; }
       if (!confirm(`Send this to ${c.name} on ${c.channel}?\n\n${text}`)) return;
       sendBtn.disabled = true;
       try {
         await api(`/api/inbox/${encodeURIComponent(id)}/send`, { method: "POST", body: { text, draft_id: draftId } });
         toast("Sent");
-        render();
+        render({ fresh: true });
       } catch (e) { toast(e.message); sendBtn.disabled = false; }
     },
-  }, "Send");
+  }, `Send on ${c.channel}`);
+
+  const thread = h("div", { class: "thread" }, c.messages.length ? c.messages.map((m) =>
+    h("div", { class: `bubble ${m.from}` }, m.text, h("span", { class: "at" }, ago(m.at)))) : h("div", { class: "empty" }, "No messages."));
+  setTimeout(() => thread.lastElementChild && thread.lastElementChild.scrollIntoView({ block: "nearest" }), 0);
 
   return [
-    h("button", { class: "link-btn", style: "margin-bottom:10px", onclick: () => go("clients") }, "← All conversations"),
-    h("div", { class: "muted small", style: "margin-bottom:8px" }, c.channel, c.tags.length ? ` · ${c.tags.join(", ")}` : ""),
-    h("div", { class: "thread" }, c.messages.length ? c.messages.map((m) =>
-      h("div", { class: `bubble ${m.from}` }, m.text, h("span", { class: "at" }, ago(m.at)))) : h("div", { class: "empty" }, "No messages.")),
-    c.send_type ? h("div", { class: "card stack" },
+    h("div", { class: "row thread-head" },
+      h("button", { class: "link-btn", style: "flex:0 0 auto", onclick: () => go("clients") }, "← All"),
+      h("span", { class: "muted small", style: "text-align:right" },
+        h("span", { class: "pill subtle" }, isClientTag(c.tags) ? "Client" : "Lead"), " ", c.channel)),
+    thread,
+    c.send_type ? h("div", { class: "card stack composer" },
+      h("div", { class: "chips" }, QUICK_PROMPTS.map(([label, text]) => h("button", { type: "button", class: "chip", onclick: () => draft(text) }, label))),
+      h("div", { class: "row" }, instructions, draftBtn),
       box,
-      instructions,
-      h("div", { class: "row" }, draftBtn, sendBtn),
-      draftId ? h("button", { class: "link-btn small", onclick: async () => { await api(`/api/drafts/${draftId}/discard`, { method: "POST" }); render(); } }, "Discard draft") : null,
-      h("div", { class: "muted small" }, "Nothing is sent until you press Send and confirm."),
+      sendBtn,
+      h("div", { class: "row", style: "align-items:center" },
+        h("span", { class: "muted small" }, "Nothing is sent until you press Send and confirm."),
+        draftId ? h("button", { class: "link-btn small", style: "flex:0 0 auto", onclick: async () => { await api(`/api/drafts/${draftId}/discard`, { method: "POST" }); render({ fresh: true }); } }, "Discard draft") : null),
     ) : h("div", { class: "card muted small" }, `Replying on ${c.channel} isn't supported here yet. Reply in GoHighLevel.`),
   ];
 }
 
-views.money = async () => {
-  const d = await api("/api/finance");
+function weeklyChart(weeks) {
+  const max = Math.max(1, ...weeks.map((w) => w.amount));
+  const readout = h("div", { class: "chart-readout" });
+  const bars = h("div", { class: "bars", role: "group", "aria-label": "Cash collected per week" });
+  const select = (i) => {
+    const w = weeks[i];
+    readout.replaceChildren(h("strong", {}, money(w.amount)), h("span", {}, ` week of ${dayLabel(w.week_of)}${i === weeks.length - 1 ? " (so far)" : ""}`));
+    bars.querySelectorAll(".bar").forEach((b, j) => b.classList.toggle("sel", j === i));
+  };
+  weeks.forEach((w, i) => bars.append(h("button", {
+    class: "bar" + (i === weeks.length - 1 ? " partial" : ""), style: `height:${Math.max(2, (w.amount / max) * 100)}%`,
+    "aria-label": `Week of ${w.week_of}: ${money(w.amount)}`, onclick: () => select(i),
+  })));
+  select(weeks.length - 1);
+  return h("div", { class: "chart" },
+    readout,
+    h("div", { class: "chart-body" },
+      h("div", { class: "axis" }, h("span", {}, money(max)), h("span", {}, money(max / 2)), h("span", {}, "$0")),
+      h("div", { class: "chart-plot" }, h("div", { class: "gridlines" }, h("i"), h("i"), h("i")), bars)),
+    h("div", { class: "bar-labels" }, weeks.map((w, i) => h("span", {}, (weeks.length - 1 - i) % 2 ? "" : `${Number(w.week_of.slice(8, 10))}/${Number(w.week_of.slice(5, 7))}`))),
+    h("div", { class: "muted small", style: "margin-top:6px" }, "Tap a bar for its total. Net of refunds; the latest week is partial."),
+  );
+}
+
+function versus(now, before) {
+  if (!before) return "";
+  const pct = Math.round(((now - before) / before) * 100);
+  return `${pct >= 0 ? "▲" : "▼"} ${Math.abs(pct)}%`;
+}
+
+views.money = async (_arg, { load }) => {
+  const d = await load("/api/finance");
   const s = d.stripe;
   const log = d.log;
   const weeks = (s.weekly || []).slice(-12);
-  const max = Math.max(1, ...weeks.map((w) => w.amount));
-  const amount = h("input", { type: "number", step: "0.01", placeholder: "Amount", required: true });
+  const amount = h("input", { type: "number", step: "0.01", placeholder: "Amount", required: true, inputmode: "decimal" });
   const kind = h("select", { "aria-label": "In or out" }, h("option", { value: "out" }, "Money out"), h("option", { value: "in" }, "Money in"));
   const category = h("input", { type: "text", placeholder: "Category (e.g. software)", list: "cats" });
   const note = h("input", { type: "text", placeholder: "Note" });
   const cats = h("datalist", { id: "cats" }, ["software", "ads", "contractors", "food", "rent", "transport", "health", "fun", "income"].map((c) => h("option", { value: c })));
+  const mtd = s.last_month_to_date;
 
   return [
     h("div", { class: "card" }, h("h2", {}, "Business · Stripe"),
@@ -696,17 +1073,13 @@ views.money = async () => {
         : s.error ? h("div", { class: "error small" }, s.error)
         : [
           h("div", { class: "stats" },
-            h("div", { class: "stat" }, h("div", { class: "label" }, "This week"), h("div", { class: "value" }, money(s.this_week)), h("div", { class: "sub" }, "so far")),
-            h("div", { class: "stat" }, h("div", { class: "label" }, "This month"), h("div", { class: "value" }, money(s.this_month)), h("div", { class: "sub" }, `last month ${money(s.last_month)}`)),
+            h("div", { class: "stat" }, h("div", { class: "label" }, "This month so far"), h("div", { class: "value" }, money(s.this_month)),
+              h("div", { class: "sub" }, mtd !== undefined && mtd !== null ? [`${money(mtd)} by now last month `, h("span", { class: s.this_month >= mtd ? "up" : "down" }, versus(s.this_month, mtd))] : `last month ${money(s.last_month)}`)),
+            h("div", { class: "stat" }, h("div", { class: "label" }, "This week"), h("div", { class: "value" }, money(s.this_week)), h("div", { class: "sub" }, `last month in full ${money(s.last_month)}`)),
             h("div", { class: "stat" }, h("div", { class: "label" }, "Balance"), h("div", { class: "value" }, money(s.balance_available)), h("div", { class: "sub" }, `${money(s.balance_pending)} pending`)),
             h("div", { class: "stat" }, h("div", { class: "label" }, "Active subscriptions"), h("div", { class: "value" }, s.active_subscriptions), h("div", { class: "sub" }, "in Stripe")),
           ),
-          weeks.length ? [
-            h("div", { class: "bars", role: "img", "aria-label": "Cash collected per week" }, weeks.map((w, i) =>
-              h("div", { class: "bar" + (i === weeks.length - 1 ? " partial" : ""), style: `height:${(w.amount / max) * 100}%`, title: `Week of ${w.week_of}: ${money(w.amount)}` }))),
-            h("div", { class: "bar-labels" }, weeks.map((w) => h("span", {}, `${Number(w.week_of.slice(8, 10))}/${Number(w.week_of.slice(5, 7))}`))),
-            h("div", { class: "muted small", style: "margin-top:6px" }, "Cash collected per week, net of refunds. The current week is partial."),
-          ] : null,
+          weeks.length ? weeklyChart(weeks) : null,
           s.failed && s.failed.length ? [h("h2", { style: "margin-top:14px" }, "Failed payments"),
             h("ul", { class: "list" }, s.failed.map((f) => h("li", {},
               h("div", { class: "grow" }, h("div", { class: "title" }, f.customer || "Unknown"), h("div", { class: "meta" }, `${dayLabel(f.date)} · ${f.reason}`)),
@@ -715,7 +1088,7 @@ views.money = async () => {
         ],
     ),
     h("div", { class: "card" }, h("h2", {}, "Money log · this month"),
-      h("div", { class: "stats", style: "margin-bottom:10px" },
+      h("div", { class: "stats three", style: "margin-bottom:10px" },
         h("div", { class: "stat" }, h("div", { class: "label" }, "In"), h("div", { class: "value amount in" }, money(log.month_in))),
         h("div", { class: "stat" }, h("div", { class: "label" }, "Out"), h("div", { class: "value amount out" }, money(Math.abs(log.month_out)))),
         h("div", { class: "stat" }, h("div", { class: "label" }, "Net"), h("div", { class: "value" }, money(log.month_net))),
@@ -729,7 +1102,7 @@ views.money = async () => {
           const value = Math.abs(parseFloat(amount.value)) * (kind.value === "out" ? -1 : 1);
           await api("/api/money", { method: "POST", body: { amount: value, category: category.value || "other", note: note.value } });
           toast("Logged");
-          render();
+          render({ fresh: true });
         },
       }, h("div", { class: "row" }, amount, kind), h("div", { class: "row" }, category, note), cats, h("button", { class: "primary", type: "submit" }, "Log it")),
     ),
@@ -737,43 +1110,96 @@ views.money = async () => {
       h("ul", { class: "list" }, log.recent.map((e) => h("li", {},
         h("div", { class: "grow" }, h("div", { class: "title" }, e.category), h("div", { class: "meta" }, `${dayLabel(e.date)}${e.note ? " · " + e.note : ""}`)),
         h("div", { class: "amount " + (e.amount < 0 ? "out" : "in") }, money(e.amount)),
-        h("button", { class: "icon-btn small", "aria-label": "Delete", onclick: async () => { if (confirm("Delete this entry?")) { await api(`/api/money/${e.id}`, { method: "DELETE" }); render(); } } }, "×"))))) : null,
+        h("button", { class: "icon-btn small", "aria-label": "Delete", onclick: async () => { if (confirm("Delete this entry?")) { await api(`/api/money/${e.id}`, { method: "DELETE" }); render({ fresh: true }); } } }, "×"))))) : null,
   ];
 };
 
-views.ask = async () => {
-  const d = await api("/api/chat");
+// Reads the assistant's reply as it's written: one JSON event per line.
+async function streamChat(message, onEvent) {
+  const res = await fetch("/api/chat/stream", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message }), credentials: "same-origin",
+  });
+  if (res.status === 401) { showLogin(); throw new Error("Please log in"); }
+  if (!res.ok || !res.body) throw new Error(`Request failed (${res.status})`);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (line) onEvent(JSON.parse(line));
+    }
+  }
+}
+
+const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+views.ask = async (_arg, { load }) => {
+  const d = await load("/api/chat");
   const thread = h("div", { class: "chat" }, d.messages.map((m) => h("div", { class: `bubble ${m.role}` }, m.text)));
-  const input = h("textarea", { placeholder: "Ask anything, or tell me what to do…", rows: 2 });
+  const input = h("textarea", { placeholder: "Ask or tell me what to do…", rows: 1 });
   const send = h("button", { class: "primary", type: "submit", style: "flex:0 0 auto" }, "Send");
+  input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 160) + "px"; });
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && window.matchMedia("(pointer:fine)").matches) { e.preventDefault(); ask(input.value); } });
 
   async function ask(text) {
-    if (!text.trim()) return;
+    if (!text.trim() || send.disabled) return;
+    thread.querySelector(".suggestions")?.remove();
     thread.append(h("div", { class: "bubble user" }, text));
-    const thinking = h("div", { class: "bubble assistant muted" }, "Thinking…");
-    thread.append(thinking);
-    thinking.scrollIntoView({ behavior: "smooth", block: "end" });
-    input.value = ""; send.disabled = true;
+    const reply = h("div", { class: "bubble assistant" });
+    const body = h("span", {});
+    const status = h("span", { class: "status" }, h("i", { class: "dots" }), "Thinking…");
+    reply.append(body, status);
+    thread.append(reply);
+    reply.scrollIntoView({ behavior: "smooth", block: "end" });
+    input.value = ""; input.style.height = ""; send.disabled = true;
+    const used = new Set();
     try {
-      const r = await api("/api/chat", { method: "POST", body: { message: text } });
-      thinking.className = "bubble assistant";
-      thinking.textContent = r.reply || "(no reply)";
-      if (r.tools && r.tools.length) thinking.append(h("span", { class: "at" }, `used: ${[...new Set(r.tools)].join(", ").replaceAll("_", " ")}`));
+      await streamChat(text, (ev) => {
+        if (ev.type === "text") { body.textContent += ev.delta; status.hidden = true; }
+        else if (ev.type === "status") { status.hidden = false; status.replaceChildren(h("i", { class: "dots" }), ev.text); }
+        else if (ev.type === "done") (ev.tools || []).forEach((t) => used.add(t));
+        reply.scrollIntoView({ block: "end" });
+      });
+      status.remove();
+      if (!body.textContent.trim()) body.textContent = "(no reply)";
+      if (used.size) reply.append(h("span", { class: "at" }, `used: ${[...used].join(", ").replaceAll("_", " ")}`));
+      cache.delete("/api/chat");
+      ["/api/today", "/api/todos?include_done=false", "/api/finance"].forEach((p) => cache.delete(p)); // it may have changed things
     } catch (e) {
-      thinking.className = "bubble assistant error";
-      thinking.textContent = e.message;
+      status.remove();
+      reply.classList.add("error");
+      body.textContent = e.message;
     }
     send.disabled = false;
-    thinking.scrollIntoView({ behavior: "smooth", block: "end" });
   }
 
   const suggestions = ["What's my day look like?", "Who do I need to reply to?", "How's revenue this month?", "Plan my week"];
+  let mic = null;
+  if (Speech) {
+    mic = h("button", { type: "button", class: "icon-btn mic", "aria-label": "Speak", style: "flex:0 0 auto" }, icon("mic"));
+    mic.addEventListener("click", () => {
+      const rec = new Speech();
+      rec.lang = "en-AU";
+      rec.interimResults = true;
+      mic.classList.add("on");
+      rec.onresult = (e) => { input.value = [...e.results].map((r) => r[0].transcript).join(""); };
+      rec.onend = () => { mic.classList.remove("on"); input.focus(); };
+      rec.onerror = () => { mic.classList.remove("on"); toast("Couldn't hear that"); };
+      rec.start();
+    });
+  }
+  if (!d.messages.length) thread.append(h("div", { class: "suggestions" }, suggestions.map((s) => h("button", { onclick: () => ask(s) }, s))));
   return [
     h("div", { class: "row", style: "justify-content:flex-end;margin-bottom:8px" },
-      h("button", { class: "ghost", style: "flex:0 0 auto", onclick: async () => { await api("/api/chat/new", { method: "POST" }); render(); } }, "New chat")),
-    d.messages.length ? null : h("div", { class: "suggestions" }, suggestions.map((s) => h("button", { onclick: () => ask(s) }, s))),
+      h("button", { class: "ghost", style: "flex:0 0 auto", onclick: async () => { await api("/api/chat/new", { method: "POST" }); cache.delete("/api/chat"); render({ fresh: true }); } }, "New chat")),
     thread,
-    h("form", { class: "chat-input row", onsubmit: (ev) => { ev.preventDefault(); ask(input.value); } }, input, send),
+    h("form", { class: "chat-input row", onsubmit: (ev) => { ev.preventDefault(); ask(input.value); } }, mic, input, send),
   ];
 };
 
@@ -781,36 +1207,90 @@ views.ask = async () => {
 
 const titles = { today: "Today", calendar: "Calendar", todos: "To-dos", clients: "Clients", money: "Money", ask: "Ask" };
 let current = { tab: "today", arg: null };
+let renderSeq = 0;
 
 function go(tab, arg = null) {
   current = { tab, arg };
   const hash = arg ? `#${tab}/${encodeURIComponent(arg)}` : `#${tab}`;
   if (location.hash !== hash) history.pushState(null, "", hash);
+  window.scrollTo(0, 0);
   render();
 }
 
-async function render() {
+const busyTyping = () => {
+  const a = document.activeElement;
+  return a && view.contains(a) && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.value)) || view.querySelector(".editor");
+};
+
+// Shows cached data first (if any), then quietly swaps in fresh data, unless you're mid-edit.
+async function render({ fresh = false } = {}) {
   const { tab, arg } = current;
+  const seq = ++renderSeq;
   document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
   $("#view-title").textContent = titles[tab];
-  view.replaceChildren(loading());
-  try {
-    const content = await views[tab](arg);
-    if (current.tab !== tab || current.arg !== arg) return; // the user moved on while this loaded
+  const stillHere = () => seq === renderSeq;
+
+  if (!fresh) {
+    const cached = loader(true);
+    let content = null;
+    const timer = setTimeout(() => stillHere() && !content && view.replaceChildren(...skeleton()), 120);
+    try {
+      content = await views[tab](arg, cached);
+    } catch (e) {
+      clearTimeout(timer);
+      if (stillHere()) view.replaceChildren(h("div", { class: "card" }, errorBox(e)));
+      return;
+    }
+    clearTimeout(timer);
+    if (!stillHere()) return;
     view.replaceChildren(...[content].flat(3).filter(Boolean));
+    if (!cached.usedCache) return; // that was already fresh
+  }
+  setRefreshing(true);
+  try {
+    const content = await views[tab](arg, loader(false));
+    if (stillHere() && !(busyTyping() && !fresh)) view.replaceChildren(...[content].flat(3).filter(Boolean));
   } catch (e) {
-    view.replaceChildren(h("div", { class: "card" }, errorBox(e)));
+    if (stillHere() && fresh) toast(e.message);
+  } finally {
+    if (stillHere()) setRefreshing(false);
   }
 }
+
+function setRefreshing(on) { $("#refresh").classList.toggle("spin", on); }
 
 function fromHash() {
   const [tab, arg] = location.hash.slice(1).split("/");
   current = { tab: titles[tab] ? tab : "today", arg: arg ? decodeURIComponent(arg) : null };
 }
 
-document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.tab)));
-$("#refresh").addEventListener("click", render);
+// Pull down at the top of the page to refresh.
+(function pullToRefresh() {
+  const ind = $("#ptr");
+  let y0 = null, pulled = 0;
+  window.addEventListener("touchstart", (e) => { y0 = window.scrollY <= 0 ? e.touches[0].clientY : null; pulled = 0; }, { passive: true });
+  window.addEventListener("touchmove", (e) => {
+    if (y0 === null) return;
+    pulled = Math.max(0, e.touches[0].clientY - y0);
+    ind.style.height = Math.min(pulled * 0.5, 60) + "px";
+    ind.classList.toggle("ready", pulled > 110);
+  }, { passive: true });
+  window.addEventListener("touchend", () => {
+    if (y0 !== null && pulled > 110) render({ fresh: true });
+    y0 = null;
+    ind.style.height = "0";
+    ind.classList.remove("ready");
+  });
+})();
+
+document.querySelectorAll(".tabs button").forEach((b) => {
+  b.prepend(icon(b.dataset.tab));
+  b.addEventListener("click", () => go(b.dataset.tab));
+});
+$("#refresh").prepend(icon("refresh"));
+$("#refresh").addEventListener("click", () => render({ fresh: true }));
 window.addEventListener("popstate", () => { fromHash(); render(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !$("#app").hidden) render(); });
 
 // ---------- login ----------
 

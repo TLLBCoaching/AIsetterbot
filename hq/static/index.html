@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-AU">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -25,18 +25,19 @@
   </div>
 
   <div id="app" hidden>
+    <div id="ptr" class="ptr" aria-hidden="true"><span>↓ Pull to refresh</span></div>
     <header class="topbar">
       <h1 id="view-title">Today</h1>
-      <button id="refresh" class="icon-btn" aria-label="Refresh">↻</button>
+      <button id="refresh" class="icon-btn" aria-label="Refresh"></button>
     </header>
     <main id="view" class="view"></main>
     <nav class="tabs" aria-label="Sections">
-      <button data-tab="today" class="active"><span>☀︎</span>Today</button>
-      <button data-tab="calendar"><span>▦</span>Calendar</button>
-      <button data-tab="todos"><span>✓</span>To-dos</button>
-      <button data-tab="clients"><span>✉︎</span>Clients</button>
-      <button data-tab="money"><span>$</span>Money</button>
-      <button data-tab="ask"><span>✦</span>Ask</button>
+      <button data-tab="today" class="active">Today</button>
+      <button data-tab="calendar">Calendar</button>
+      <button data-tab="todos">To-dos</button>
+      <button data-tab="clients">Clients<span id="clients-badge" class="badge" hidden></span></button>
+      <button data-tab="money">Money</button>
+      <button data-tab="ask">Ask</button>
     </nav>
   </div>
 

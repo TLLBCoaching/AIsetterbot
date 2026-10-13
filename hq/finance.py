@@ -55,7 +55,9 @@ def summarise_charges(charges: list[dict], today: date, tz, currency: str) -> di
     month_start = today.replace(day=1)
     last_month_start = (month_start - timedelta(days=1)).replace(day=1)
 
-    totals = {"this_week": 0.0, "this_month": 0.0, "last_month": 0.0}
+    # The same point last month, so a part-month can be compared fairly (31 Oct → 30 Sep).
+    last_month_same_day = last_month_start.replace(day=min(today.day, (month_start - timedelta(days=1)).day))
+    totals = {"this_week": 0.0, "this_month": 0.0, "last_month": 0.0, "last_month_to_date": 0.0}
     weekly: dict[str, float] = defaultdict(float)
     failed = []
     for ch in charges:
@@ -81,6 +83,8 @@ def summarise_charges(charges: list[dict], today: date, tz, currency: str) -> di
             totals["this_month"] += net
         elif day >= last_month_start:
             totals["last_month"] += net
+            if day <= last_month_same_day:
+                totals["last_month_to_date"] += net
 
     weeks = [{"week_of": k, "amount": round(v, 2)} for k, v in sorted(weekly.items())]
     return {

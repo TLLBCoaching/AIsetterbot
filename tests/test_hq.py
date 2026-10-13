@@ -85,6 +85,7 @@ def test_stripe_summary_nets_refunds_and_lists_failures():
         {"created": ts(2026, 10, 6), "status": "succeeded", "amount": 99900, "currency": "usd"},
     ]
     s = summarise_charges(charges, date(2026, 10, 8), SYD, "AUD")
+    assert s["last_month_to_date"] == 0.0  # the September charge was on the 20th, after "the 8th"
     assert s["this_week"] == 250.0  # Mon 5 Oct onwards: 300 - 50 refund
     assert s["this_month"] == 450.0
     assert s["last_month"] == 100.0
@@ -185,24 +186,47 @@ class _Block:
         return dict(self.__dict__)
 
 
+class _FakeStream:
+    def __init__(self, message):
+        self.message = message
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    def __aiter__(self):
+        async def events():
+            for block in self.message.content:
+                if block.type == "text":
+                    yield _Block(type="text", text=block.text)
+        return events()
+
+    async def get_final_message(self):
+        return self.message
+
+
 class _FakeMessages:
-    """Answers the first call with a tool call, the second with text."""
+    """Streams a tool call first, then text."""
 
-    def __init__(self):
+    def __init__(self, first_input=None):
         self.calls = []
+        self.first_input = first_input or {"title": "Call Jake", "due": "2026-10-09"}
 
-    async def create(self, **kwargs):
-        self.calls.append(kwargs)
+    def stream(self, **kwargs):
+        self.calls.append({**kwargs, "messages": list(kwargs["messages"])})
         if len(self.calls) == 1:
-            return _Block(stop_reason="tool_use", content=[
-                _Block(type="tool_use", id="t1", name="add_todo", input={"title": "Call Jake", "due": "2026-10-09"}),
-            ])
-        return _Block(stop_reason="end_turn", content=[_Block(type="text", text="Added: Call Jake, due tomorrow.")])
+            return _FakeStream(_Block(stop_reason="tool_use", content=[
+                _Block(type="tool_use", id="t1", name="add_todo", input=self.first_input),
+            ]))
+        return _FakeStream(_Block(stop_reason="end_turn",
+                                  content=[_Block(type="text", text="Added: Call Jake, due tomorrow.")]))
 
 
 class _FakeClient:
-    def __init__(self):
-        self.beta = _Block(messages=_FakeMessages())
+    def __init__(self, first_input=None):
+        self.beta = _Block(messages=_FakeMessages(first_input))
 
 
 def test_assistant_runs_tools_and_keeps_an_append_only_transcript(store):
@@ -340,3 +364,44 @@ def test_connector_tools_and_secret_url(store):
     assert routed.post("/mcp/" + "x" * 32).status_code == 404
     short = TestClient(ConnectorRoute(inner, mcp_app=fake_mcp, token="short"))
     assert short.post("/mcp/short").status_code == 404  # a weak token never opens the connector
+
+
+def test_assistant_streams_status_and_rejects_bad_tool_input(store):
+    import asyncio
+
+    from hq.assistant import STREAM_TOOLS, Assistant, validate_input
+
+    assert all(t["eager_input_streaming"] for t in STREAM_TOOLS)
+    assert validate_input("add_todo", {"title": "x"}) == ""
+    assert validate_input("add_todo", {}) == "missing title"
+    assert validate_input("update_todo", {"id": "1", "done": "yes"}) == "done should be a boolean"
+    assert validate_input("log_money", {"amount": True, "category": "x"}) == "amount should be a number"
+
+    async def collect(bot, chat_id, text):
+        return [e async for e in bot.chat_events(chat_id, text)]
+
+    good = Assistant(store, client=_FakeClient())
+    events = asyncio.run(collect(good, store.new_chat(), "remind me"))
+    assert [e["type"] for e in events] == ["status", "text", "done"]
+    assert events[0]["text"] == "Adding a to-do…"
+
+    fake = _FakeClient(first_input={"due": "2026-10-09"})  # no title: must not run
+    bad = Assistant(HQStore(":memory:"), client=fake)
+    asyncio.run(collect(bad, bad.store.new_chat(), "remind me"))
+    assert bad.store.list_todos() == []
+    result = fake.beta.messages.calls[1]["messages"][-1]["content"][0]
+    assert result["is_error"] and "missing title" in result["content"]
+
+
+def test_chat_stream_endpoint_sends_one_event_per_line(client):
+    import json as _json
+
+    from hq.assistant import Assistant
+
+    client.post("/api/login", json={"password": "correct horse"})
+    server._assistant = Assistant(server.store, client=_FakeClient(), todos=server.todos)
+    resp = client.post("/api/chat/stream", json={"message": "remind me to call Jake"})
+    assert resp.headers["content-type"].startswith("application/x-ndjson")
+    events = [_json.loads(line) for line in resp.text.splitlines() if line]
+    assert [e["type"] for e in events] == ["status", "text", "done"]
+    assert client.get("/api/chat").json()["messages"][-1]["text"] == "Added: Call Jake, due tomorrow."

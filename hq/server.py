@@ -6,6 +6,7 @@ Run it with:  uvicorn hq.server:app --host 0.0.0.0 --port 8100
 import asyncio
 import hashlib
 import hmac
+import json
 import logging
 import re
 import time
@@ -16,7 +17,7 @@ from pathlib import Path
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi import Path as PathParam
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -410,6 +411,17 @@ async def chat(body: ChatIn) -> dict:
     async with _chat_lock:
         chat_id = store.latest_chat() or store.new_chat()
         return await assistant().chat(chat_id, body.message.strip())
+
+
+@app.post("/api/chat/stream", dependencies=[Depends(require_login)])
+async def chat_stream(body: ChatIn) -> StreamingResponse:
+    """The same as /api/chat, streamed as one JSON event per line (text, status, then done)."""
+    async def events():
+        async with _chat_lock:
+            chat_id = store.latest_chat() or store.new_chat()
+            async for event in assistant().chat_events(chat_id, body.message.strip()):
+                yield json.dumps(event) + "\n"
+    return StreamingResponse(events(), media_type="application/x-ndjson", headers={"Cache-Control": "no-cache"})
 
 
 @app.post("/api/chat/new", dependencies=[Depends(require_login)])
