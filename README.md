@@ -101,7 +101,8 @@ pip install -r requirements.txt
 uvicorn hq.server:app --host 0.0.0.0 --port 8100
 ```
 
-Deploy it like the setter (Railway, Render, Fly.io, a VPS) behind HTTPS, with `data/` on persistent storage.
+Deploy it on Railway: `railway.json` already holds the start command and health check. Add a volume
+mounted at `/app/data` so your data survives restarts, and put your settings in the service's Variables.
 On your phone, open the URL and choose **Add to Home Screen** so it opens like an app. Each section shows a
 "not connected" note until its keys are set, so you can switch things on one at a time.
 
