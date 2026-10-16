@@ -569,12 +569,22 @@ async def health() -> dict:
     return {"ok": True}
 
 
-app.mount("/static", StaticFiles(directory=STATIC), name="static")
+class FreshStaticFiles(StaticFiles):
+    """Static files the browser re-checks on every load (a cheap 304 when unchanged), so updates show at once."""
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount("/static", FreshStaticFiles(directory=STATIC), name="static")
 
 
 @app.get("/manifest.webmanifest")
 async def manifest() -> FileResponse:
-    return FileResponse(STATIC / "manifest.webmanifest", media_type="application/manifest+json")
+    return FileResponse(STATIC / "manifest.webmanifest", media_type="application/manifest+json",
+                        headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/")

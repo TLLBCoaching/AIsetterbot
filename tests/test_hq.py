@@ -549,3 +549,10 @@ def test_google_oauth_state_is_checked(client, monkeypatch):
     finally:
         object.__setattr__(hq_settings, "google_client_id", "")
         object.__setattr__(hq_settings, "google_client_secret", "")
+
+
+def test_static_files_are_revalidated(client):
+    resp = client.get("/static/app.js")
+    assert resp.status_code == 200 and resp.headers["cache-control"] == "no-cache"
+    again = client.get("/static/app.js", headers={"If-None-Match": resp.headers["etag"]})
+    assert again.status_code == 304
