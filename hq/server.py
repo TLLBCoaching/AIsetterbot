@@ -591,6 +591,17 @@ async def manifest() -> FileResponse:
                         headers={"Cache-Control": "no-cache"})
 
 
+# Public pages Google's consent screen links to.
+@app.get("/privacy")
+async def privacy() -> FileResponse:
+    return FileResponse(STATIC / "privacy.html")
+
+
+@app.get("/terms")
+async def terms() -> FileResponse:
+    return FileResponse(STATIC / "terms.html")
+
+
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})

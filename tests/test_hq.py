@@ -562,3 +562,8 @@ def test_static_files_are_revalidated(client):
     assert resp.status_code == 200 and resp.headers["cache-control"] == "no-cache"
     again = client.get("/static/app.js", headers={"If-None-Match": resp.headers["etag"]})
     assert again.status_code == 304
+
+
+def test_privacy_and_terms_are_public(client):
+    assert "privacy policy" in client.get("/privacy").text
+    assert "terms of service" in client.get("/terms").text
