@@ -356,6 +356,7 @@ class TodoPatch(BaseModel):
     notes: str | None = None
     due: str | None = Field(default=None, pattern=r"^(\d{4}-\d{2}-\d{2})?$")
     area: str | None = None
+    project: str | None = Field(default=None, max_length=100)  # Asana project id (or HQ area); "" = none
     priority: int | None = None
     done: bool | None = None
 
@@ -403,6 +404,71 @@ async def delete_todo(todo_id: str = PathParam(pattern=TODO_ID)) -> dict:
     except httpx.HTTPError as exc:
         raise _todo_error(exc)
     return {"ok": True}
+
+
+# The full task screen: notes, project, subtasks and comments.
+
+@app.get("/api/todos/{todo_id}", dependencies=[Depends(require_login)])
+async def todo_detail(todo_id: str = PathParam(pattern=TODO_ID)) -> dict:
+    try:
+        todo = await todos.detail(todo_id)
+    except httpx.HTTPError as exc:
+        raise _todo_error(exc)
+    if not todo:
+        raise HTTPException(404, "That to-do no longer exists")
+    return todo
+
+
+class SubtaskIn(BaseModel):
+    title: str = Field(min_length=1, max_length=500)
+
+
+class SubtaskPatch(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=500)
+    done: bool | None = None
+
+
+class CommentIn(BaseModel):
+    text: str = Field(min_length=1, max_length=5000)
+
+
+@app.post("/api/todos/{todo_id}/subtasks", dependencies=[Depends(require_login)])
+async def add_subtask(body: SubtaskIn, todo_id: str = PathParam(pattern=TODO_ID)) -> dict:
+    try:
+        return await todos.add_subtask(todo_id, body.title)
+    except httpx.HTTPError as exc:
+        raise _todo_error(exc)
+
+
+@app.patch("/api/todos/{todo_id}/subtasks/{subtask_id}", dependencies=[Depends(require_login)])
+async def update_subtask(body: SubtaskPatch, todo_id: str = PathParam(pattern=TODO_ID),
+                         subtask_id: str = PathParam(pattern=TODO_ID)) -> dict:
+    try:
+        sub = await todos.update_subtask(todo_id, subtask_id, title=body.title, done=body.done)
+    except httpx.HTTPError as exc:
+        raise _todo_error(exc)
+    if not sub:
+        raise HTTPException(404, "That subtask no longer exists")
+    return sub
+
+
+@app.delete("/api/todos/{todo_id}/subtasks/{subtask_id}", dependencies=[Depends(require_login)])
+async def delete_subtask(todo_id: str = PathParam(pattern=TODO_ID), subtask_id: str = PathParam(pattern=TODO_ID)) -> dict:
+    try:
+        await todos.delete_subtask(todo_id, subtask_id)
+    except httpx.HTTPError as exc:
+        raise _todo_error(exc)
+    return {"ok": True}
+
+
+@app.post("/api/todos/{todo_id}/comments", dependencies=[Depends(require_login)])
+async def add_comment(body: CommentIn, todo_id: str = PathParam(pattern=TODO_ID)) -> dict:
+    try:
+        return await todos.add_comment(todo_id, body.text)
+    except NotImplementedError:
+        raise HTTPException(400, "Comments work once Asana is connected.")
+    except httpx.HTTPError as exc:
+        raise _todo_error(exc)
 
 
 # Client inbox

@@ -198,41 +198,7 @@ async function completeTodo(t, after) {
   toast("Done ✓", () => patchTodo(t, { done: false }, after));
 }
 
-function todoEditor(t, after) {
-  const title = h("input", { type: "text", value: t.title, "aria-label": "Title" });
-  const notes = h("input", { type: "text", value: t.notes || "", placeholder: "Notes" });
-  const due = datePicker(t.due);
-  let star = !!t.priority;
-  const starBtn = h("button", { type: "button", class: "chip" + (star ? " on" : ""), onclick: () => { star = !star; starBtn.classList.toggle("on", star); } }, icon("star", "icon sm"), " Important");
-  return h("form", {
-    class: "editor stack",
-    onsubmit: async (ev) => {
-      ev.preventDefault();
-      if (!title.value.trim()) return;
-      await patchTodo(t, { title: title.value.trim(), notes: notes.value, due: due.get() || "", priority: star ? 1 : 0 }, after);
-      toast("Saved");
-    },
-  },
-    title, notes, due.el,
-    h("div", { class: "row", style: "align-items:center" },
-      starBtn,
-      ASANA(t) ? h("a", { href: t.url, target: "_blank", rel: "noopener", class: "link-btn small", style: "flex:0 0 auto" }, "Open in Asana ↗") : null,
-      h("span", { style: "flex:1" }),
-      h("button", {
-        type: "button", class: "ghost danger", style: "flex:0 0 auto",
-        onclick: async () => {
-          if (!confirm(`Delete "${t.title}"${ASANA(t) ? " from Asana" : ""}?`)) return;
-          await api(`/api/todos/${t.id}`, { method: "DELETE" });
-          toast("Deleted");
-          after();
-        },
-      }, "Delete"),
-      h("button", { type: "submit", class: "primary", style: "flex:0 0 auto" }, "Save"),
-    ),
-  );
-}
-
-// A to-do row: tap the circle or swipe right to complete, tap the text to edit.
+// A to-do row: tap the circle or swipe right to complete, tap the text to open the task.
 function todoItem(t, after) {
   const iso = todayISO();
   let due = null;
@@ -246,18 +212,11 @@ function todoItem(t, after) {
       class: "check" + (t.done ? " done" : ""), "aria-label": t.done ? "Mark not done" : "Mark done",
       onclick: () => (t.done ? patchTodo(t, { done: false }, after) : completeTodo(t, after)),
     }, t.done ? icon("check", "icon sm") : null),
-    h("button", {
-      class: "grow todo-body", "aria-expanded": "false",
-      onclick: () => {
-        const open = li.querySelector(".editor");
-        if (open) { open.remove(); return; }
-        li.append(todoEditor(t, after));
-        li.querySelector(".editor input").focus();
-      },
-    },
+    h("button", { class: "grow todo-body", onclick: () => go("todos", t.id) },
       h("span", { class: "title" + (t.done ? " done-text" : "") }, t.priority ? icon("star", "icon sm star") : null, t.title),
-      h("span", { class: "meta" }, due, due ? " " : "", t.area, t.notes ? ` · ${t.notes}` : ""),
+      h("span", { class: "meta" }, due, due ? " " : "", t.area, t.notes ? ` · ${t.notes.split("\n")[0]}` : ""),
     ),
+    icon("chevron", "icon sm muted row-chevron"),
   );
   li.append(h("div", { class: "swipe" }, h("div", { class: "swipe-bg" }, icon("check", "icon sm"), " Done"), fg));
   if (!t.done) enableSwipe(fg, () => completeTodo(t, after));
@@ -313,6 +272,167 @@ function conversationItem(c) {
     ),
     h("div", { class: "meta right" }, c.channel, h("br"), ago(c.last_message_at)),
   );
+}
+
+// ---------- the full task screen ----------
+
+// Lists elsewhere are out of date once a task changes.
+function forgetTodos() {
+  for (const key of [...cache.keys()]) if (key.startsWith("/api/todos") || key === "/api/today") cache.delete(key);
+}
+
+function autoGrow(el) {
+  const fit = () => { el.style.height = "auto"; el.style.height = el.scrollHeight + 2 + "px"; };
+  el.addEventListener("input", fit);
+  setTimeout(fit, 0);
+  return el;
+}
+
+async function taskView(id) {
+  const t = await api(`/api/todos/${encodeURIComponent(id)}`); // always fresh: you may edit straight away
+  $("#view-title").textContent = "Task";
+  const base = `/api/todos/${encodeURIComponent(id)}`;
+  const status = h("span", { class: "save-status muted small", "aria-live": "polite" });
+  let pending = 0;
+
+  async function save(body, quiet) {
+    pending++;
+    status.textContent = "Saving…";
+    try {
+      const updated = await api(base, { method: "PATCH", body });
+      Object.assign(t, updated);
+      forgetTodos();
+      if (--pending === 0) status.textContent = "Saved ✓";
+      if (!quiet) toast("Saved");
+    } catch (e) {
+      pending--;
+      status.textContent = "Not saved";
+      toast(e.message);
+    }
+  }
+
+  // Title and done
+  const check = h("button", { class: "check big" + (t.done ? " done" : ""), "aria-label": t.done ? "Mark not done" : "Mark done" }, t.done ? icon("check", "icon sm") : null);
+  const title = autoGrow(h("textarea", { class: "task-title", rows: 1, "aria-label": "Task name", value: t.title }));
+  title.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); title.blur(); } });
+  title.addEventListener("blur", () => {
+    const v = title.value.trim();
+    if (!v) { title.value = t.title; return; }
+    if (v !== t.title) save({ title: v }, true);
+  });
+  check.addEventListener("click", async () => {
+    const done = !t.done;
+    await save({ done }, true);
+    check.classList.toggle("done", t.done);
+    check.replaceChildren(t.done ? icon("check", "icon sm") : "");
+    title.classList.toggle("done-text", t.done);
+    if (t.done) toast("Done ✓", async () => { await save({ done: false }, true); check.classList.remove("done"); check.replaceChildren(); title.classList.remove("done-text"); });
+  });
+  if (t.done) title.classList.add("done-text");
+
+  // Details
+  const due = datePicker(t.due, (v) => save({ due: v || "" }, true));
+  const star = h("button", { type: "button", class: "chip" + (t.priority ? " on" : "") }, icon("star", "icon sm"), " Important");
+  star.addEventListener("click", () => { const on = !t.priority; star.classList.toggle("on", on); save({ priority: on ? 1 : 0 }, true); });
+  const project = h("select", { "aria-label": "Project" },
+    me.connected.asana ? h("option", { value: "" }, "No project (My Tasks only)") : null,
+    t.projects.map((p) => { const o = h("option", { value: p.id }, p.name); if (p.id === t.project_id) o.selected = true; return o; }));
+  project.addEventListener("change", () => save({ project: project.value }, true));
+
+  // Notes save as you type, a moment after you stop.
+  const notes = autoGrow(h("textarea", { class: "task-notes", rows: 3, placeholder: "Add notes, links, details…", value: t.notes || "" }));
+  let notesTimer = null;
+  const saveNotes = () => { clearTimeout(notesTimer); if (notes.value !== (t.notes || "")) save({ notes: notes.value }, true); };
+  notes.addEventListener("input", () => { clearTimeout(notesTimer); status.textContent = "Editing…"; notesTimer = setTimeout(saveNotes, 900); });
+  notes.addEventListener("blur", saveNotes);
+
+  // Subtasks
+  const subList = h("ul", { class: "subtasks" });
+  const doneCount = h("span", { class: "count" });
+  const paintCount = () => {
+    const n = subList.querySelectorAll(".subtask").length, d = subList.querySelectorAll(".subtask .check.done").length;
+    doneCount.textContent = n ? ` ${d}/${n}` : "";
+  };
+  function subRow(sub) {
+    const box = h("button", { class: "check small-check" + (sub.done ? " done" : ""), "aria-label": sub.done ? "Mark not done" : "Mark done" }, sub.done ? icon("check", "icon sm") : null);
+    const name = h("input", { type: "text", value: sub.title, "aria-label": "Subtask", class: "subtask-title" + (sub.done ? " done-text" : "") });
+    const row = h("li", { class: "subtask" }, box, name,
+      h("button", { class: "icon-btn small", "aria-label": "Delete subtask", onclick: async () => {
+        row.remove(); paintCount();
+        try { await api(`${base}/subtasks/${sub.id}`, { method: "DELETE" }); } catch (e) { toast(e.message); }
+      } }, "×"));
+    box.addEventListener("click", async () => {
+      sub.done = !sub.done;
+      box.classList.toggle("done", sub.done); box.replaceChildren(sub.done ? icon("check", "icon sm") : "");
+      name.classList.toggle("done-text", sub.done); paintCount();
+      try { await api(`${base}/subtasks/${sub.id}`, { method: "PATCH", body: { done: sub.done } }); } catch (e) { toast(e.message); }
+    });
+    name.addEventListener("keydown", (e) => { if (e.key === "Enter") name.blur(); });
+    name.addEventListener("blur", async () => {
+      const v = name.value.trim();
+      if (!v) { name.value = sub.title; return; }
+      if (v === sub.title) return;
+      sub.title = v;
+      try { await api(`${base}/subtasks/${sub.id}`, { method: "PATCH", body: { title: v } }); status.textContent = "Saved ✓"; } catch (e) { toast(e.message); }
+    });
+    return row;
+  }
+  t.subtasks.forEach((sub) => subList.append(subRow(sub)));
+  paintCount();
+  const newSub = h("input", { type: "text", placeholder: "Add a subtask…", enterkeyhint: "done", "aria-label": "New subtask" });
+  const addSub = h("form", { class: "row add-sub", onsubmit: async (e) => {
+    e.preventDefault();
+    const v = newSub.value.trim();
+    if (!v) return;
+    newSub.value = "";
+    try { subList.append(subRow(await api(`${base}/subtasks`, { method: "POST", body: { title: v } }))); paintCount(); forgetTodos(); }
+    catch (err) { toast(err.message); newSub.value = v; }
+    newSub.focus();
+  } }, newSub, h("button", { class: "secondary", type: "submit", style: "flex:0 0 auto" }, "Add"));
+
+  // Comments (Asana only)
+  let comments = null;
+  if (t.supports_comments) {
+    const list = h("ul", { class: "comments" }, t.comments.map(commentRow));
+    const box = autoGrow(h("textarea", { rows: 2, placeholder: "Write a comment…", "aria-label": "Comment" }));
+    const send = h("button", { class: "secondary", type: "submit", style: "flex:0 0 auto" }, "Comment");
+    comments = h("div", { class: "card" }, h("h2", {}, "Comments ", h("span", { class: "count" }, t.comments.length || "")),
+      t.comments.length ? null : h("div", { class: "empty small no-comments" }, "No comments yet."),
+      list,
+      h("form", { class: "row comment-form", onsubmit: async (e) => {
+        e.preventDefault();
+        const v = box.value.trim();
+        if (!v) return;
+        send.disabled = true;
+        try { list.append(commentRow(await api(`${base}/comments`, { method: "POST", body: { text: v } }))); box.value = ""; comments.querySelector(".no-comments")?.remove(); }
+        catch (err) { toast(err.message); }
+        send.disabled = false;
+      } }, box, send));
+  }
+
+  return [
+    h("div", { class: "row task-head" },
+      h("button", { class: "link-btn", style: "flex:0 0 auto", onclick: () => history.length > 1 ? history.back() : go("todos") }, "← To-dos"),
+      h("span", { class: "row", style: "flex:0 0 auto;gap:12px;align-items:center" }, status,
+        ASANA(t) ? h("a", { href: t.url, target: "_blank", rel: "noopener", class: "link-btn small" }, "Asana ↗") : null)),
+    h("div", { class: "card task-card" },
+      h("div", { class: "task-top" }, check, title),
+      h("div", { class: "field" }, h("label", {}, "Due"), due.el),
+      h("div", { class: "field" }, h("label", {}, "Project"), project),
+      h("div", { class: "field" }, h("label", {}, "Priority"), h("div", { class: "chips" }, star)),
+      h("div", { class: "field" }, h("label", {}, "Notes"), notes),
+    ),
+    h("div", { class: "card" }, h("h2", {}, "Subtasks", doneCount), subList, addSub),
+    comments,
+    h("button", { class: "ghost danger delete-task", onclick: async () => {
+      if (!confirm(`Delete "${t.title}"${ASANA(t) ? " from Asana" : ""}?`)) return;
+      try { await api(base, { method: "DELETE" }); forgetTodos(); toast("Deleted"); go("todos"); } catch (e) { toast(e.message); }
+    } }, "Delete task"),
+  ];
+}
+
+function commentRow(c) {
+  return h("li", {}, h("div", { class: "meta" }, c.author || "You", c.at ? ` · ${ago(c.at)}` : ""), h("div", { class: "comment-text" }, c.text));
 }
 
 const statChip = (value, label, tab) => h("button", { class: "stat-chip", onclick: () => go(tab) }, h("strong", {}, value), h("span", {}, label));
@@ -531,7 +651,8 @@ views.calendar = async (_arg, { load }) => {
 };
 
 let todoFilter = "open";
-views.todos = async (_arg, { load }) => {
+views.todos = async (taskId, { load }) => {
+  if (taskId) return taskView(taskId);
   const todos = await load(`/api/todos?include_done=${todoFilter === "done"}`);
   const iso = todayISO();
   const shown = todoFilter === "done" ? todos.filter((t) => t.done) : todos;
@@ -548,7 +669,7 @@ views.todos = async (_arg, { load }) => {
       ["open", "done"].map((f) => h("button", { class: todoFilter === f ? "active" : "", onclick: () => { todoFilter = f; render(); } }, f === "open" ? "Open" : "Done"))),
     h("p", { class: "muted small hint" },
       todoFilter === "done" ? (me.connected.asana ? "Completed in Asana in the last 14 days." : "")
-        : `Swipe right or tap the circle to complete. Tap a to-do to edit or reschedule.${me.connected.asana ? " Synced with your Asana My Tasks." : ""}`),
+        : `Swipe right or tap the circle to complete. Tap a to-do to open it.${me.connected.asana ? " Synced with your Asana My Tasks." : ""}`),
     groups.filter(([, items]) => items.length).map(([name, items]) =>
       h("div", { class: "card" }, h("h2", {}, name, " ", h("span", { class: "count" }, items.length)), h("ul", { class: "list" }, items.map((t) => todoItem(t, refresh))))),
     shown.length ? null : h("div", { class: "empty" }, todoFilter === "done" ? "Nothing completed yet." : "All clear."),

@@ -567,3 +567,119 @@ def test_static_files_are_revalidated(client):
 def test_privacy_and_terms_are_public(client):
     assert "privacy policy" in client.get("/privacy").text
     assert "terms of service" in client.get("/terms").text
+
+
+def _fake_asana_detail():
+    """In-memory Asana covering the full task screen: subtasks, comments, projects."""
+    import json as _json
+
+    import httpx
+
+    state = {
+        "task": {"gid": "111", "name": "Film reels", "notes": "", "due_on": None, "completed": False,
+                 "permalink_url": "https://app.asana.com/1/w/task/111", "projects": [{"gid": "p1", "name": "Content"}]},
+        "subs": {"s1": {"gid": "s1", "name": "Write hooks", "completed": False}},
+        "stories": [{"gid": "c0", "type": "system", "text": "created task"},
+                    {"gid": "c1", "type": "comment", "text": "Use the gym", "created_at": "2026-10-16T01:00:00Z",
+                     "created_by": {"name": "Alistair"}}],
+        "projects": [{"gid": "p2", "name": "Admin"}, {"gid": "p1", "name": "Content"}],
+        "calls": [],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path.removeprefix("/api/1.0")
+        state["calls"].append((request.method, path))
+        body = _json.loads(request.content) if request.content else {}
+        if path == "/users/me":
+            return httpx.Response(200, json={"data": {"workspaces": [{"gid": "ws1"}]}})
+        if path == "/projects":
+            return httpx.Response(200, json={"data": state["projects"]})
+        if path == "/tasks/111" and request.method == "GET":
+            return httpx.Response(200, json={"data": state["task"]})
+        if path == "/tasks/111" and request.method == "PUT":
+            state["task"].update({"name": body["data"].get("name", state["task"]["name"])})
+            return httpx.Response(200, json={"data": state["task"]})
+        if path == "/tasks/111/subtasks" and request.method == "GET":
+            return httpx.Response(200, json={"data": list(state["subs"].values())})
+        if path == "/tasks/111/subtasks" and request.method == "POST":
+            sub = {"gid": "s2", "name": body["data"]["name"], "completed": False}
+            state["subs"]["s2"] = sub
+            return httpx.Response(201, json={"data": sub})
+        if path.startswith("/tasks/s"):
+            gid = path.removeprefix("/tasks/")
+            if request.method == "DELETE":
+                state["subs"].pop(gid, None)
+                return httpx.Response(200, json={"data": {}})
+            sub = state["subs"][gid]
+            if "name" in body["data"]:
+                sub["name"] = body["data"]["name"]
+            if "completed" in body["data"]:
+                sub["completed"] = body["data"]["completed"]
+            return httpx.Response(200, json={"data": sub})
+        if path == "/tasks/111/stories" and request.method == "GET":
+            return httpx.Response(200, json={"data": state["stories"]})
+        if path == "/tasks/111/stories" and request.method == "POST":
+            story = {"gid": "c2", "type": "comment", "text": body["data"]["text"], "created_at": "2026-10-17T01:00:00Z",
+                     "created_by": {"name": "Alistair"}}
+            state["stories"].append(story)
+            return httpx.Response(201, json={"data": story})
+        if path == "/tasks/111/removeProject":
+            state["task"]["projects"] = [p for p in state["task"]["projects"] if p["gid"] != body["data"]["project"]]
+            return httpx.Response(200, json={"data": {}})
+        if path == "/tasks/111/addProject":
+            name = {p["gid"]: p["name"] for p in state["projects"]}[body["data"]["project"]]
+            state["task"]["projects"].append({"gid": body["data"]["project"], "name": name})
+            return httpx.Response(200, json={"data": {}})
+        return httpx.Response(404, json={})
+
+    return state, httpx.MockTransport(handler)
+
+
+def test_asana_task_screen_subtasks_comments_projects(store):
+    import asyncio
+
+    from hq.todos import AsanaTodos
+
+    state, transport = _fake_asana_detail()
+    asana = AsanaTodos(store, "pat", workspace="ws1", transport=transport)
+
+    async def run():
+        d = await asana.detail("111")
+        assert d["subtasks"] == [{"id": "s1", "title": "Write hooks", "done": False}]
+        assert [c["text"] for c in d["comments"]] == ["Use the gym"]  # system stories hidden
+        assert [p["name"] for p in d["projects"]] == ["Admin", "Content"] and d["project_id"] == "p1"
+
+        sub = await asana.add_subtask("111", "Film B-roll")
+        assert sub["title"] == "Film B-roll"
+        await asana.update_subtask("111", "s1", done=True)
+        assert state["subs"]["s1"]["completed"] is True
+        await asana.delete_subtask("111", "s2")
+        assert "s2" not in state["subs"]
+
+        comment = await asana.add_comment("111", "Shot list done")
+        assert comment["author"] == "Alistair" and comment["text"] == "Shot list done"
+
+        moved = await asana.update("111", project="p2")
+        assert [p["gid"] for p in state["task"]["projects"]] == ["p2"]
+        assert moved["project_id"] == "p2" and moved["area"] == "Admin"
+        await asana.update("111", project="")
+        assert state["task"]["projects"] == []
+
+    asyncio.run(run())
+
+
+def test_task_screen_api_with_hq_todos(client):
+    client.post("/api/login", json={"password": "correct horse"})
+    todo = client.post("/api/todos", json={"title": "Plan week"}).json()
+    detail = client.get(f"/api/todos/{todo['id']}").json()
+    assert detail["subtasks"] == [] and detail["supports_comments"] is False
+    assert "business" in [p["id"] for p in detail["projects"]]
+
+    sub = client.post(f"/api/todos/{todo['id']}/subtasks", json={"title": "Check calendar"}).json()
+    assert client.patch(f"/api/todos/{todo['id']}/subtasks/{sub['id']}", json={"done": True}).json()["done"] is True
+    assert client.patch(f"/api/todos/{todo['id']}", json={"project": "health", "notes": "line 1\nline 2"}).json()["area"] == "health"
+    detail = client.get(f"/api/todos/{todo['id']}").json()
+    assert detail["subtasks"][0]["done"] and detail["notes"] == "line 1\nline 2"
+    assert client.post(f"/api/todos/{todo['id']}/comments", json={"text": "hi"}).status_code == 400
+    assert client.delete(f"/api/todos/{todo['id']}/subtasks/{sub['id']}").status_code == 200
+    assert client.get("/api/todos/999").status_code == 404

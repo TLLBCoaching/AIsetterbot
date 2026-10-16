@@ -18,6 +18,12 @@ CREATE TABLE IF NOT EXISTS todos (
     created_at TEXT NOT NULL,
     done_at TEXT
 );
+CREATE TABLE IF NOT EXISTS todo_subtasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    todo_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    done INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS todo_flags (  -- star and area for to-dos that live in Asana
     task_id TEXT PRIMARY KEY,
     priority INTEGER NOT NULL DEFAULT 0,
@@ -121,6 +127,25 @@ class HQStore:
 
     def delete_todo(self, todo_id: int) -> None:
         self._write("DELETE FROM todos WHERE id = ?", (todo_id,))
+        self._write("DELETE FROM todo_subtasks WHERE todo_id = ?", (todo_id,))
+
+    def list_subtasks(self, todo_id: int) -> list[dict]:
+        return self._rows("SELECT * FROM todo_subtasks WHERE todo_id = ? ORDER BY id", (todo_id,))
+
+    def add_subtask(self, todo_id: int, title: str) -> dict:
+        sub_id = self._write("INSERT INTO todo_subtasks (todo_id, title) VALUES (?, ?)", (todo_id, title.strip()))
+        return self._rows("SELECT * FROM todo_subtasks WHERE id = ?", (sub_id,))[0]
+
+    def update_subtask(self, todo_id: int, sub_id: int, title: str | None = None, done: bool | None = None) -> dict | None:
+        if title is not None:
+            self._write("UPDATE todo_subtasks SET title = ? WHERE id = ? AND todo_id = ?", (title, sub_id, todo_id))
+        if done is not None:
+            self._write("UPDATE todo_subtasks SET done = ? WHERE id = ? AND todo_id = ?", (int(done), sub_id, todo_id))
+        rows = self._rows("SELECT * FROM todo_subtasks WHERE id = ? AND todo_id = ?", (sub_id, todo_id))
+        return rows[0] if rows else None
+
+    def delete_subtask(self, todo_id: int, sub_id: int) -> None:
+        self._write("DELETE FROM todo_subtasks WHERE id = ? AND todo_id = ?", (sub_id, todo_id))
 
     def todo_flags(self, task_id: str) -> dict:
         rows = self._rows("SELECT priority, area FROM todo_flags WHERE task_id = ?", (task_id,))

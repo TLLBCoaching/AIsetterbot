@@ -1,9 +1,13 @@
 """To-do backends. With ASANA_TOKEN set, to-dos live in Asana (your My Tasks); otherwise in HQ's own database.
 
-Both return the same shape: {id, title, notes, due, area, priority, done, url}. IDs are strings.
+Both return the same shape: {id, title, notes, due, area, project_id, priority, done, url}. IDs are strings.
+detail() adds subtasks, comments and the projects a task can be moved to.
 """
 
+from __future__ import annotations
+
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -15,6 +19,8 @@ log = logging.getLogger(__name__)
 
 ASANA_API = "https://app.asana.com/api/1.0"
 TASK_FIELDS = "name,notes,due_on,completed,completed_at,permalink_url,projects.name"
+# HQ's own areas, used as "projects" when to-dos live in HQ rather than Asana.
+AREAS = ["business", "clients", "content", "personal", "health", "home"]
 # How far back the "Done" list looks in Asana.
 DONE_LOOKBACK_DAYS = 14
 
@@ -34,7 +40,35 @@ class LocalTodos:
     def _out(t: dict | None) -> dict | None:
         if t is None:
             return None
-        return {**t, "id": str(t["id"]), "url": ""}
+        return {**t, "id": str(t["id"]), "url": "", "project_id": t["area"]}
+
+    async def detail(self, todo_id: str) -> dict | None:
+        todo = self._out(self.store.get_todo(int(todo_id))) if str(todo_id).isdigit() else None
+        if todo is None:
+            return None
+        return {
+            **todo,
+            "subtasks": [{"id": str(s["id"]), "title": s["title"], "done": bool(s["done"])}
+                         for s in self.store.list_subtasks(int(todo_id))],
+            "comments": [],
+            "supports_comments": False,
+            "projects": [{"id": a, "name": a.capitalize()} for a in AREAS],
+        }
+
+    async def add_subtask(self, todo_id: str, title: str) -> dict:
+        s = self.store.add_subtask(int(todo_id), title)
+        return {"id": str(s["id"]), "title": s["title"], "done": bool(s["done"])}
+
+    async def update_subtask(self, todo_id: str, subtask_id: str, title: str | None = None,
+                             done: bool | None = None) -> dict | None:
+        s = self.store.update_subtask(int(todo_id), int(subtask_id), title=title, done=done)
+        return {"id": str(s["id"]), "title": s["title"], "done": bool(s["done"])} if s else None
+
+    async def delete_subtask(self, todo_id: str, subtask_id: str) -> None:
+        self.store.delete_subtask(int(todo_id), int(subtask_id))
+
+    async def add_comment(self, todo_id: str, text: str) -> dict:
+        raise NotImplementedError("Comments need Asana connected")
 
     async def list(self, include_done: bool = False) -> list[dict]:
         return [self._out(t) for t in self.store.list_todos(include_done=include_done)]
@@ -46,6 +80,8 @@ class LocalTodos:
     async def update(self, todo_id: str, **changes) -> dict | None:
         if not str(todo_id).isdigit():
             return None
+        if "project" in changes:
+            changes["area"] = changes.pop("project") or "business"
         return self._out(self.store.update_todo(int(todo_id), **changes))
 
     async def delete(self, todo_id: str) -> None:
@@ -65,6 +101,7 @@ class AsanaTodos:
         self.workspace = workspace
         self.project = project
         self._token = token
+        self._projects: tuple[float, list[dict]] | None = None
 
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(base_url=ASANA_API, headers={"Authorization": f"Bearer {self._token}"},
@@ -83,8 +120,10 @@ class AsanaTodos:
     def _out(self, task: dict) -> dict:
         flags = self.store.todo_flags(task["gid"])
         projects = [p.get("name", "") for p in task.get("projects") or [] if p.get("name")]
+        project_ids = [p["gid"] for p in task.get("projects") or [] if p.get("gid")]
         return {
             "id": task["gid"],
+            "project_id": project_ids[0] if project_ids else "",
             "title": task.get("name") or "(untitled)",
             "notes": task.get("notes") or "",
             "due": task.get("due_on"),
@@ -129,6 +168,9 @@ class AsanaTodos:
         return self._out(task)
 
     async def update(self, todo_id: str, **changes) -> dict | None:
+        if "project" in changes:
+            await self.set_project(todo_id, changes.pop("project") or "")
+            changes["area"] = ""  # show the Asana project's name from now on
         flag_changes = {k: changes.pop(k) for k in ("priority", "area") if k in changes}
         if flag_changes:
             self.store.set_todo_flags(todo_id, **flag_changes)
@@ -157,6 +199,98 @@ class AsanaTodos:
             if resp.status_code != 404:
                 resp.raise_for_status()
         self.store.clear_todo_flags(todo_id)
+
+    # The full task screen: subtasks, comments, projects
+
+    async def projects(self) -> list[dict]:
+        if self._projects and time.monotonic() - self._projects[0] < 600:
+            return self._projects[1]
+        async with self._client() as http:
+            resp = await http.get("/projects", params={
+                "workspace": await self._workspace(http), "archived": "false", "opt_fields": "name", "limit": 100})
+            resp.raise_for_status()
+        found = sorted(({"id": p["gid"], "name": p.get("name") or "(untitled)"} for p in resp.json().get("data", [])),
+                       key=lambda p: p["name"].lower())
+        self._projects = (time.monotonic(), found)
+        return found
+
+    async def detail(self, todo_id: str) -> dict | None:
+        async with self._client() as http:
+            resp = await http.get(f"/tasks/{todo_id}", params={"opt_fields": TASK_FIELDS})
+            if resp.status_code == 404:
+                return None
+            resp.raise_for_status()
+            task = resp.json()["data"]
+            subs = await http.get(f"/tasks/{todo_id}/subtasks", params={"opt_fields": "name,completed"})
+            subs.raise_for_status()
+            stories = await http.get(f"/tasks/{todo_id}/stories",
+                                     params={"opt_fields": "type,text,created_at,created_by.name"})
+            stories.raise_for_status()
+        return {
+            **self._out(task),
+            "subtasks": [{"id": s["gid"], "title": s.get("name") or "", "done": bool(s.get("completed"))}
+                         for s in subs.json().get("data", [])],
+            "comments": [_comment(c) for c in stories.json().get("data", []) if c.get("type") == "comment"],
+            "supports_comments": True,
+            "projects": await self.projects(),
+        }
+
+    async def set_project(self, todo_id: str, project_id: str) -> None:
+        """Moves a task to one project (or none), leaving it assigned to you."""
+        async with self._client() as http:
+            resp = await http.get(f"/tasks/{todo_id}", params={"opt_fields": "projects"})
+            resp.raise_for_status()
+            current = [p["gid"] for p in resp.json()["data"].get("projects") or []]
+            for gid in current:
+                if gid != project_id:
+                    (await http.post(f"/tasks/{todo_id}/removeProject", json={"data": {"project": gid}})).raise_for_status()
+            if project_id and project_id not in current:
+                (await http.post(f"/tasks/{todo_id}/addProject", json={"data": {"project": project_id}})).raise_for_status()
+
+    async def add_subtask(self, todo_id: str, title: str) -> dict:
+        async with self._client() as http:
+            resp = await http.post(f"/tasks/{todo_id}/subtasks", json={"data": {"name": title.strip()}},
+                                   params={"opt_fields": "name,completed"})
+            resp.raise_for_status()
+        s = resp.json()["data"]
+        return {"id": s["gid"], "title": s.get("name") or "", "done": bool(s.get("completed"))}
+
+    async def update_subtask(self, todo_id: str, subtask_id: str, title: str | None = None,
+                             done: bool | None = None) -> dict | None:
+        data = {}
+        if title is not None:
+            data["name"] = title
+        if done is not None:
+            data["completed"] = bool(done)
+        async with self._client() as http:
+            resp = await http.put(f"/tasks/{subtask_id}", json={"data": data}, params={"opt_fields": "name,completed"})
+            if resp.status_code == 404:
+                return None
+            resp.raise_for_status()
+        s = resp.json()["data"]
+        return {"id": s["gid"], "title": s.get("name") or "", "done": bool(s.get("completed"))}
+
+    async def delete_subtask(self, todo_id: str, subtask_id: str) -> None:
+        async with self._client() as http:
+            resp = await http.delete(f"/tasks/{subtask_id}")
+            if resp.status_code != 404:
+                resp.raise_for_status()
+
+    async def add_comment(self, todo_id: str, text: str) -> dict:
+        async with self._client() as http:
+            resp = await http.post(f"/tasks/{todo_id}/stories", json={"data": {"text": text.strip()}},
+                                   params={"opt_fields": "type,text,created_at,created_by.name"})
+            resp.raise_for_status()
+        return _comment(resp.json()["data"])
+
+
+def _comment(story: dict) -> dict:
+    return {
+        "id": story.get("gid", ""),
+        "text": story.get("text") or "",
+        "author": (story.get("created_by") or {}).get("name") or "",
+        "at": story.get("created_at") or "",
+    }
 
 
 def todo_backend(store: HQStore) -> LocalTodos | AsanaTodos:
