@@ -64,7 +64,7 @@ class GoogleCalendar:
             "response_type": "code",
             "scope": SCOPE,
             "access_type": "offline",  # ask for a refresh token so HQ stays connected
-            "prompt": "consent",
+            "prompt": "consent select_account",  # always ask which Google account to use
             "include_granted_scopes": "true",
             "state": state,
         })
