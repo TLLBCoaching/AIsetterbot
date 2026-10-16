@@ -17,6 +17,7 @@ from mcp.types import ToolAnnotations
 from . import calendar, finance
 from .clients import InboxClient, render_messages
 from .config import hq_settings
+from .gcal import NeedsReconnect
 from .store import HQStore
 
 INSTRUCTIONS = f"""\
@@ -76,6 +77,32 @@ def build_connector(store: HQStore, todos) -> MCPServer:
         """Calendar events from start_date (YYYY-MM-DD, default today) for 1-42 days."""
         start = date.fromisoformat(start_date) if start_date else _today()
         return await calendar.get_events(*calendar.day_bounds(start, max(1, min(days, 42))))
+
+    async def calendar_call(fn):
+        google = calendar.google
+        if google is None or not google.connected:
+            return {"error": "Google Calendar isn't connected. Connect it on HQ's Calendar tab."}
+        try:
+            return await fn(google)
+        except NeedsReconnect:
+            return {"error": "Google Calendar needs reconnecting on HQ's Calendar tab."}
+        except httpx.HTTPError as exc:
+            return {"error": f"Google Calendar request failed: {type(exc).__name__}"}
+
+    @mcp.tool(annotations=WRITE)
+    async def add_calendar_event(title: str, date: str, start_time: str = "", duration_minutes: int = 60,
+                                 location: str = "", notes: str = "") -> dict:
+        """Add an event to Alistair's own Google Calendar. date is YYYY-MM-DD; start_time is 24-hour HH:MM,
+        or empty for all day. It never invites anyone."""
+        return await calendar_call(lambda g: g.create_event(title, date, start_time, duration_minutes, location, notes))
+
+    @mcp.tool(annotations=WRITE)
+    async def move_calendar_event(id: str, calendar_id: str = "primary", title: str | None = None,
+                                  date: str | None = None, start_time: str | None = None,
+                                  duration_minutes: int | None = None) -> dict:
+        """Move or rename a Google Calendar event, using its id and calendar from get_schedule."""
+        return await calendar_call(lambda g: g.update_event(
+            id, calendar_id, title=title, day=date, start_time=start_time, duration_minutes=duration_minutes))
 
     @mcp.tool(annotations=READ)
     async def list_todos(include_done: bool = False) -> list[dict]:

@@ -405,3 +405,147 @@ def test_chat_stream_endpoint_sends_one_event_per_line(client):
     events = [_json.loads(line) for line in resp.text.splitlines() if line]
     assert [e["type"] for e in events] == ["status", "text", "done"]
     assert client.get("/api/chat").json()["messages"][-1]["text"] == "Added: Call Jake, due tomorrow."
+
+
+def _fake_google():
+    """A tiny in-memory Google OAuth + Calendar API."""
+    import json as _json
+    from urllib.parse import parse_qs
+
+    import httpx
+
+    state = {"events": {
+        "e1": {"id": "e1", "summary": "Sales call", "location": "Zoom", "htmlLink": "https://calendar.google.com/e1",
+               "start": {"dateTime": "2026-10-16T11:30:00+11:00"}, "end": {"dateTime": "2026-10-16T12:15:00+11:00"}},
+        "e2": {"id": "e2", "summary": "School holidays", "start": {"date": "2026-10-16"}, "end": {"date": "2026-10-17"}},
+        "e3": {"id": "e3", "status": "cancelled", "start": {"date": "2026-10-16"}},
+    }, "refresh_ok": True, "token_calls": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        if url.startswith("https://oauth2.googleapis.com/token"):
+            state["token_calls"] += 1
+            form = parse_qs(request.content.decode())
+            if form["grant_type"] == ["authorization_code"]:
+                assert form["code"] == ["good-code"]
+                return httpx.Response(200, json={"access_token": "at1", "refresh_token": "rt1", "expires_in": 3600})
+            if not state["refresh_ok"]:
+                return httpx.Response(400, json={"error": "invalid_grant"})
+            return httpx.Response(200, json={"access_token": "at2", "expires_in": 3600})
+        if url.startswith("https://oauth2.googleapis.com/revoke"):
+            return httpx.Response(200)
+        assert request.headers["authorization"].startswith("Bearer at")
+        path = request.url.path.removeprefix("/calendar/v3")
+        if path == "/calendars/primary":
+            return httpx.Response(200, json={"id": "alistair@example.com", "summary": "alistair@example.com"})
+        if path == "/calendars/primary/events" and request.method == "GET":
+            return httpx.Response(200, json={"items": list(state["events"].values())})
+        if path == "/calendars/primary/events" and request.method == "POST":
+            body = _json.loads(request.content)
+            ev = {"id": "new", **body}
+            state["events"]["new"] = ev
+            return httpx.Response(200, json=ev)
+        eid = path.rsplit("/", 1)[-1]
+        if eid not in state["events"]:
+            return httpx.Response(404, json={})
+        if request.method == "PATCH":
+            state["events"][eid].update(_json.loads(request.content))
+        if request.method == "DELETE":
+            state["events"].pop(eid)
+            return httpx.Response(204)
+        return httpx.Response(200, json=state["events"][eid])
+
+    return state, httpx.MockTransport(handler)
+
+
+@pytest.fixture
+def google_env(store):
+    from hq.config import hq_settings
+    from hq.gcal import GoogleCalendar
+
+    object.__setattr__(hq_settings, "google_client_id", "cid")
+    object.__setattr__(hq_settings, "google_client_secret", "secret")
+    state, transport = _fake_google()
+    yield GoogleCalendar(store, transport=transport), state
+    object.__setattr__(hq_settings, "google_client_id", "")
+    object.__setattr__(hq_settings, "google_client_secret", "")
+
+
+def test_google_connect_read_add_move_delete(google_env, store):
+    import asyncio
+
+    from hq.gcal import NeedsReconnect
+
+    g, state = google_env
+    assert g.configured and not g.connected
+    url = g.auth_url("st", "https://hq.example/oauth/google/callback")
+    assert "access_type=offline" in url and "calendar.events" in url and "state=st" in url
+
+    async def run():
+        await g.finish_connect("good-code", "https://hq.example/oauth/google/callback")
+        assert g.connected and g.account == "alistair@example.com"
+
+        start = datetime(2026, 10, 16, tzinfo=SYD)
+        events = await g.list_events(start, datetime(2026, 10, 17, tzinfo=SYD))
+        assert [e["title"] for e in events] == ["Sales call", "School holidays"]  # cancelled one dropped
+        assert events[0]["start"].startswith("2026-10-16T11:30") and events[1]["all_day"]
+
+        added = await g.create_event("Call Jake", "2026-10-17", "14:00", 30, "Phone")
+        body = state["events"]["new"]
+        assert body["start"] == {"dateTime": "2026-10-17T14:00:00", "timeZone": "Australia/Sydney"}
+        assert body["end"]["dateTime"] == "2026-10-17T14:30:00"
+        assert added["title"] == "Call Jake"
+        await g.create_event("Holiday", "2026-10-20")
+        assert state["events"]["new"]["start"] == {"date": "2026-10-20"}
+
+        # Moving keeps the event's length (45 minutes) unless told otherwise.
+        await g.update_event("e1", day="2026-10-18", start_time="09:00")
+        assert state["events"]["e1"]["start"]["dateTime"] == "2026-10-18T09:00:00"
+        assert state["events"]["e1"]["end"]["dateTime"] == "2026-10-18T09:45:00"
+
+        await g.delete_event("e2")
+        assert "e2" not in state["events"]
+
+        # Google revoking access surfaces as NeedsReconnect, not a crash.
+        g._access_token = ""
+        state["refresh_ok"] = False
+        with pytest.raises(NeedsReconnect):
+            await g.list_events(start, start)
+
+        await g.disconnect()
+        assert not g.connected and store.get_setting("google_refresh_token") is None
+
+    asyncio.run(run())
+
+
+def test_google_oauth_state_is_checked(client, monkeypatch):
+    from hq.config import hq_settings
+
+    object.__setattr__(hq_settings, "google_client_id", "cid")
+    object.__setattr__(hq_settings, "google_client_secret", "secret")
+    try:
+        server.google.store = server.store
+        client.post("/api/login", json={"password": "correct horse"})
+        resp = client.get("/api/google/connect", follow_redirects=False)
+        assert resp.status_code == 302 and resp.headers["location"].startswith("https://accounts.google.com/")
+        state = server.OAUTH_COOKIE in resp.cookies and resp.cookies[server.OAUTH_COOKIE]
+        assert state and server._valid_state(state)
+
+        finished = []
+
+        async def fake_finish(code, redirect_uri):
+            finished.append((code, redirect_uri))
+
+        monkeypatch.setattr(server.google, "finish_connect", fake_finish)
+        bad = client.get(f"/oauth/google/callback?code=c&state={state}x", follow_redirects=False)
+        assert "google=failed" in bad.headers["location"] and not finished
+
+        client.cookies.set(server.OAUTH_COOKIE, state, path="/oauth")
+        good = client.get(f"/oauth/google/callback?code=c&state={state}", follow_redirects=False)
+        assert "google=connected" in good.headers["location"]
+        assert finished == [("c", "http://testserver/oauth/google/callback")]
+
+        assert not server._valid_state("1.abc.def")
+    finally:
+        object.__setattr__(hq_settings, "google_client_id", "")
+        object.__setattr__(hq_settings, "google_client_secret", "")

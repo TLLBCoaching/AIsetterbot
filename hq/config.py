@@ -30,7 +30,16 @@ class HQSettings:
     model: str = os.environ.get("HQ_MODEL", setter_settings.model)
     effort: str = os.environ.get("HQ_EFFORT", "medium")
 
-    # Calendar: one or more private iCal (.ics) URLs, comma separated.
+    # Google Calendar via "Sign in with Google": an OAuth client from Google Cloud (Web application,
+    # redirect URI https://<your HQ>/oauth/google/callback). Then press "Connect Google Calendar" in HQ.
+    google_client_id: str = os.environ.get("GOOGLE_CLIENT_ID", "")
+    google_client_secret: str = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    # Calendars to show, comma separated. New events always go on your main calendar.
+    google_calendar_ids: list[str] = field(default_factory=lambda: _list("GOOGLE_CALENDAR_IDS") or ["primary"])
+    # Optional: HQ's public address, e.g. https://hq.example.com. Worked out from the request when unset.
+    public_url: str = os.environ.get("HQ_PUBLIC_URL", "").rstrip("/")
+
+    # Calendar (alternative, read-only): one or more private iCal (.ics) URLs, comma separated.
     # Google Calendar → Settings → your calendar → "Secret address in iCal format".
     calendar_urls: list[str] = field(default_factory=lambda: _list("HQ_CALENDAR_ICS_URLS"))
 

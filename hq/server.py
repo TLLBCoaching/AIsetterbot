@@ -9,6 +9,7 @@ import hmac
 import json
 import logging
 import re
+import secrets
 import time
 from contextlib import asynccontextmanager
 from datetime import date, datetime
@@ -17,7 +18,7 @@ from pathlib import Path
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi import Path as PathParam
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -26,6 +27,7 @@ from .assistant import Assistant
 from .clients import InboxClient, draft_reply, render_messages
 from .config import hq_settings
 from .connector import ConnectorRoute, connector_app
+from .gcal import GoogleCalendar, NeedsReconnect
 from .store import HQStore
 from .todos import todo_backend
 
@@ -37,6 +39,8 @@ COOKIE = "hq_session"
 
 store = HQStore(hq_settings.db_path)
 todos = todo_backend(store)
+google = GoogleCalendar(store)
+calendar.google = google
 # The Claude connector (see hq/connector.py), when HQ_CONNECTOR_TOKEN is set.
 mcp_app = connector_app(store, todos)
 
@@ -135,7 +139,8 @@ async def me() -> dict:
         "timezone": hq_settings.timezone,
         "currency": hq_settings.currency,
         "connected": {
-            "calendar": bool(hq_settings.calendar_urls),
+            "calendar": bool(hq_settings.calendar_urls) or google.connected,
+            "google": {"configured": google.configured, "connected": google.connected, "account": google.account},
             "inbox": hq_settings.ghl_configured,
             "stripe": bool(hq_settings.stripe_key),
             "asana": todos.source == "asana",
@@ -199,6 +204,134 @@ async def _unread_conversations() -> dict:
 async def calendar_view(start: str | None = None, days: int = 7) -> dict:
     first = date.fromisoformat(start) if start else _today()
     return await calendar.get_events(*calendar.day_bounds(first, max(1, min(days, 42))))
+
+
+DATE_RE_EVENT = r"^\d{4}-\d{2}-\d{2}$"
+
+
+class EventIn(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    date: str = Field(pattern=DATE_RE_EVENT)
+    start_time: str = Field(default="", pattern=r"^(\d{2}:\d{2})?$")  # empty = all day
+    duration_minutes: int = Field(default=60, ge=5, le=24 * 60)
+    location: str = Field(default="", max_length=300)
+    notes: str = Field(default="", max_length=2000)
+
+
+class EventPatch(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=300)
+    date: str | None = Field(default=None, pattern=DATE_RE_EVENT)
+    start_time: str | None = Field(default=None, pattern=r"^(\d{2}:\d{2})?$")
+    duration_minutes: int | None = Field(default=None, ge=5, le=24 * 60)
+    location: str | None = Field(default=None, max_length=300)
+
+
+def _need_google() -> GoogleCalendar:
+    if not google.connected:
+        raise HTTPException(400, "Google Calendar isn't connected. Press Connect Google Calendar on the Calendar tab.")
+    return google
+
+
+async def _google_call(coro):
+    try:
+        return await coro
+    except NeedsReconnect:
+        raise HTTPException(409, "Google Calendar needs reconnecting. Press Connect Google Calendar on the Calendar tab.")
+    except httpx.HTTPStatusError as exc:
+        status = exc.response.status_code
+        raise HTTPException(404 if status == 404 else 502, "Google Calendar didn't accept that." if status != 404 else "That event no longer exists.")
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, f"Couldn't reach Google Calendar: {type(exc).__name__}")
+
+
+@app.post("/api/calendar/events", dependencies=[Depends(require_login)])
+async def add_event(body: EventIn) -> dict:
+    g = _need_google()
+    return await _google_call(g.create_event(body.title, body.date, body.start_time, body.duration_minutes,
+                                             body.location, body.notes))
+
+
+@app.patch("/api/calendar/events/{event_id}", dependencies=[Depends(require_login)])
+async def move_event(event_id: str, body: EventPatch, calendar_id: str = "primary") -> dict:
+    g = _need_google()
+    changes = body.model_dump(exclude_unset=True)
+    return await _google_call(g.update_event(
+        event_id, calendar_id, title=changes.get("title"), day=changes.get("date"),
+        start_time=changes.get("start_time"), duration_minutes=changes.get("duration_minutes"),
+        location=changes.get("location")))
+
+
+@app.delete("/api/calendar/events/{event_id}", dependencies=[Depends(require_login)])
+async def delete_event(event_id: str, calendar_id: str = "primary") -> dict:
+    g = _need_google()
+    await _google_call(g.delete_event(event_id, calendar_id))
+    return {"ok": True}
+
+
+# Connecting Google: HQ sends you to Google's sign-in, Google sends you back to /oauth/google/callback.
+# The session cookie is SameSite=Strict, so it isn't sent on the way back from Google; a signed,
+# short-lived state cookie (SameSite=Lax) proves the request started from a logged-in HQ.
+
+OAUTH_COOKIE = "hq_oauth_state"
+
+
+def _redirect_uri(request: Request) -> str:
+    base = hq_settings.public_url or str(request.base_url).rstrip("/")
+    return f"{base}/oauth/google/callback"
+
+
+def _make_state() -> str:
+    expires = int(time.time()) + 600
+    nonce = secrets.token_urlsafe(18).replace(".", "")
+    payload = f"{expires}.{nonce}"
+    sig = hmac.new(hq_settings.secret_key.encode(), f"oauth:{payload}".encode(), hashlib.sha256).hexdigest()
+    return f"{payload}.{sig}"
+
+
+def _valid_state(state: str) -> bool:
+    try:
+        expires, nonce, sig = state.split(".")
+    except ValueError:
+        return False
+    good = hmac.new(hq_settings.secret_key.encode(), f"oauth:{expires}.{nonce}".encode(), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(sig, good) and expires.isdigit() and int(expires) > time.time()
+
+
+@app.get("/api/google/connect", dependencies=[Depends(require_login)])
+async def google_connect(request: Request) -> RedirectResponse:
+    if not google.configured:
+        raise HTTPException(400, "Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Railway first.")
+    state = _make_state()
+    resp = RedirectResponse(google.auth_url(state, _redirect_uri(request)), status_code=302)
+    resp.set_cookie(OAUTH_COOKIE, state, max_age=600, httponly=True, secure=hq_settings.secure_cookies,
+                    samesite="lax", path="/oauth")
+    return resp
+
+
+@app.get("/oauth/google/callback")
+async def google_callback(request: Request, code: str = "", state: str = "", error: str = "") -> RedirectResponse:
+    _configured()
+    cookie = request.cookies.get(OAUTH_COOKIE, "")
+    outcome = "failed"
+    if error:
+        outcome = "cancelled" if error == "access_denied" else "failed"
+    elif code and state and cookie and hmac.compare_digest(state, cookie) and _valid_state(state):
+        try:
+            await google.finish_connect(code, _redirect_uri(request))
+            outcome = "connected"
+        except Exception:
+            log.exception("Finishing the Google connection failed")
+    else:
+        log.warning("Google callback with a missing or mismatched state")
+    resp = RedirectResponse(f"/?google={outcome}#calendar", status_code=302)
+    resp.delete_cookie(OAUTH_COOKIE, path="/oauth")
+    return resp
+
+
+@app.post("/api/google/disconnect", dependencies=[Depends(require_login)])
+async def google_disconnect() -> dict:
+    await google.disconnect()
+    return {"ok": True}
 
 
 # To-dos

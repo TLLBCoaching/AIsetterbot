@@ -23,6 +23,10 @@ CREATE TABLE IF NOT EXISTS todo_flags (  -- star and area for to-dos that live i
     priority INTEGER NOT NULL DEFAULT 0,
     area TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS money (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,               -- YYYY-MM-DD
@@ -134,6 +138,19 @@ class HQStore:
 
     def clear_todo_flags(self, task_id: str) -> None:
         self._write("DELETE FROM todo_flags WHERE task_id = ?", (task_id,))
+
+    # Settings (e.g. the Google Calendar connection)
+
+    def get_setting(self, key: str) -> str | None:
+        rows = self._rows("SELECT value FROM settings WHERE key = ?", (key,))
+        return rows[0]["value"] if rows else None
+
+    def set_setting(self, key: str, value: str) -> None:
+        self._write("INSERT INTO settings (key, value) VALUES (?, ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
+
+    def delete_setting(self, key: str) -> None:
+        self._write("DELETE FROM settings WHERE key = ?", (key,))
 
     # Money log
 

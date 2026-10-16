@@ -9,6 +9,7 @@ import icalendar
 import recurring_ical_events
 
 from .config import hq_settings
+from .gcal import NeedsReconnect
 
 log = logging.getLogger(__name__)
 
@@ -66,9 +67,23 @@ def events_from_calendar(cal: icalendar.Calendar, start: datetime, end: datetime
     return events
 
 
+# Set by the server: the Google Calendar connection, used instead of iCal feeds once it's connected.
+google = None
+
+
 async def get_events(start: datetime, end: datetime) -> dict:
     """Events between start and end (timezone-aware), sorted. Feeds that fail are reported, not fatal."""
     tz = hq_settings.tz
+    if google is not None and google.connected:
+        try:
+            events = await google.list_events(start, end)
+        except NeedsReconnect:
+            return {"configured": True, "source": "google", "needs_reconnect": True, "events": [], "errors": 1}
+        except httpx.HTTPError as exc:
+            log.error("Google Calendar request failed: %s", type(exc).__name__)
+            return {"configured": True, "source": "google", "events": [], "errors": 1}
+        events.sort(key=lambda e: (e["start"], not e["all_day"]))
+        return {"configured": True, "source": "google", "editable": True, "events": events, "errors": 0}
     if not hq_settings.calendar_urls:
         return {"configured": False, "events": [], "errors": 0}
     events, errors = [], 0
@@ -83,7 +98,7 @@ async def get_events(start: datetime, end: datetime) -> dict:
             log.exception("Couldn't read events from calendar feed %d", i)
             errors += 1
     events.sort(key=lambda e: (e["start"], not e["all_day"]))
-    return {"configured": True, "events": events, "errors": errors}
+    return {"configured": True, "source": "ical", "events": events, "errors": errors}
 
 
 def day_bounds(day: date, days: int = 1) -> tuple[datetime, datetime]:

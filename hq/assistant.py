@@ -13,6 +13,7 @@ import anthropic
 from . import calendar, finance
 from .clients import InboxClient, draft_reply, render_messages
 from .config import hq_settings
+from .gcal import NeedsReconnect
 from .store import HQStore
 from .todos import LocalTodos
 
@@ -30,6 +31,8 @@ How to work:
 - Use the tools to look things up rather than guessing. If a source isn't connected, say so plainly.
 - Keep answers short and scannable. He's usually on his phone. Lead with what matters or what needs doing.
 - You can add, complete and reschedule to-dos and log money without asking first, and tell him what you changed.
+- You can add and move events on his own Google Calendar. Do it when he asks, then confirm the day, time and title. \
+If the day or time is ambiguous, ask first. Events never invite other people.
 - You can never send a message to a client or lead. When he wants a reply sent, write a draft with \
 draft_client_reply and tell him it's waiting for him in the Clients tab.
 - Money is in {currency}. Stripe figures are cash collected, net of refunds, and the current week and month are \
@@ -59,6 +62,25 @@ TOOLS = [
         "start_date": {**DATE, "description": "First day, YYYY-MM-DD. Defaults to today."},
         "days": {"type": "integer", "description": "Number of days, 1-31. Defaults to 1."},
     }),
+    _tool("add_calendar_event",
+          "Add an event to Alistair's Google Calendar (his own calendar only; it never invites anyone).", {
+              "title": {"type": "string"},
+              "date": {**DATE, "description": "YYYY-MM-DD"},
+              "start_time": {"type": "string", "description": "24-hour HH:MM. Omit for an all-day event."},
+              "duration_minutes": {"type": "integer", "description": "Defaults to 60."},
+              "location": {"type": "string"},
+              "notes": {"type": "string"},
+          }, ["title", "date"]),
+    _tool("move_calendar_event",
+          "Move or rename a Google Calendar event, using the id and calendar from get_schedule.", {
+              "id": {"type": "string"},
+              "calendar": {"type": "string", "description": "The event's calendar from get_schedule. Defaults to primary."},
+              "title": {"type": "string"},
+              "date": {**DATE, "description": "New date, YYYY-MM-DD"},
+              "start_time": {"type": "string", "description": "New 24-hour HH:MM start, or an empty string for all day."},
+              "duration_minutes": {"type": "integer"},
+              "location": {"type": "string"},
+          }, ["id"]),
     _tool("list_todos", "The to-do list. Open items unless include_done is true.", {
         "include_done": {"type": "boolean"},
     }),
@@ -113,6 +135,8 @@ TOOL_STATUS = {
     "read_conversation": "Reading the conversation…",
     "draft_client_reply": "Drafting a reply…",
     "finance_summary": "Checking the numbers…",
+    "add_calendar_event": "Adding it to your calendar…",
+    "move_calendar_event": "Moving the event…",
     "log_money": "Logging it…",
 }
 
@@ -161,6 +185,8 @@ class Assistant:
             start = date.fromisoformat(args["start_date"]) if args.get("start_date") else today
             days = max(1, min(int(args.get("days") or 1), 31))
             return await calendar.get_events(*calendar.day_bounds(start, days))
+        if name in ("add_calendar_event", "move_calendar_event"):
+            return await self._calendar_tool(name, args)
         if name == "list_todos":
             return await self.todos.list(include_done=bool(args.get("include_done")))
         if name == "add_todo":
@@ -189,6 +215,23 @@ class Assistant:
                 args.get("category") or "other", args.get("note", ""),
             )
         return {"error": f"Unknown tool {name}"}
+
+    async def _calendar_tool(self, name: str, args: dict) -> object:
+        google = calendar.google
+        if google is None or not google.connected:
+            return {"error": "Google Calendar isn't connected, so events can't be added or moved. "
+                             "Alistair can connect it on the Calendar tab."}
+        try:
+            if name == "add_calendar_event":
+                return await google.create_event(
+                    args["title"], args["date"], args.get("start_time", ""), int(args.get("duration_minutes") or 60),
+                    args.get("location", ""), args.get("notes", ""))
+            return await google.update_event(
+                args["id"], args.get("calendar") or "primary", title=args.get("title"), day=args.get("date"),
+                start_time=args.get("start_time"), duration_minutes=args.get("duration_minutes"),
+                location=args.get("location"))
+        except NeedsReconnect:
+            return {"error": "Google Calendar needs reconnecting on the Calendar tab."}
 
     async def _inbox_tool(self, name: str, args: dict) -> object:
         if not hq_settings.ghl_configured:

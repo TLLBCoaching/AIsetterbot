@@ -84,7 +84,7 @@ and a Claude assistant that can work across all of them.
 | Tab | What it does | Source |
 |---|---|---|
 | Today | Today's schedule, what's due, unread messages, reply drafts, cash collected this week, failed payments | All of the below |
-| Calendar | Week view, recurring events expanded | Google Calendar private iCal links (read-only) |
+| Calendar | Week view; add, move and delete events (the assistant can too) | Google Calendar via "Sign in with Google" (`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`), or read-only iCal links |
 | To-dos | Add, complete, reschedule, star; grouped Overdue / Today / Upcoming / Someday | Your Asana My Tasks when `ASANA_TOKEN` is set (two-way: changes in either show in both), otherwise stored in HQ |
 | Clients | Your GoHighLevel conversations (Instagram, SMS, Facebook, WhatsApp, live chat). Read the thread, get Claude to draft a reply in your voice, edit it, send it | GoHighLevel, same token as the setter |
 | Money | Stripe cash collected this week and month, a 12-week trend, balance, active subscriptions, failed payments, plus a manual log for personal and other spending | Stripe (read-only key) + stored in HQ |
@@ -138,7 +138,7 @@ setter/simulate.py   terminal chat
 scripts/train.py     learn from your DM exports
 evals/               simulated-lead test suite
 hq/                  personal dashboard: server.py (API + login), assistant.py (Claude + tools),
-                     calendar.py, finance.py, clients.py, todos.py (Asana or local),
+                     calendar.py, gcal.py (Google Calendar), finance.py, clients.py, todos.py (Asana or local),
                      connector.py (Claude connector),
                      store.py, static/ (the app)
 ```

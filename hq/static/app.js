@@ -160,10 +160,11 @@ function eventList(events) {
 }
 
 // Quick date choice: Today / Tomorrow / Next week / Someday, or pick a date.
-function datePicker(initial, onChange) {
+function datePicker(initial, onChange, { someday = true } = {}) {
   let value = initial || null;
   const iso = todayISO();
-  const options = [["Today", iso], ["Tomorrow", addDays(iso, 1)], ["Next week", nextMonday(iso)], ["Someday", null]];
+  const options = [["Today", iso], ["Tomorrow", addDays(iso, 1)], ["Next week", nextMonday(iso)]];
+  if (someday) options.push(["Someday", null]);
   const native = h("input", { type: "date", class: "visually-hidden", tabindex: "-1", "aria-hidden": "true" });
   const wrap = h("div", { class: "chips", role: "group", "aria-label": "Due date" });
   function paint() {
@@ -392,12 +393,105 @@ views.today = async (_arg, { load }) => {
   ];
 };
 
+const DURATIONS = [[15, "15 min"], [30, "30 min"], [45, "45 min"], [60, "1 hour"], [90, "1.5 hours"], [120, "2 hours"], [180, "3 hours"]];
+const minutesBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 60000);
+
+// Add or edit a Google Calendar event. `ev` is null for a new event.
+function eventEditor(ev, after, onCancel) {
+  const title = h("input", { type: "text", value: ev ? ev.title : "", placeholder: "What's on?", "aria-label": "Event title", required: true });
+  const day = datePicker(ev ? ev.start.slice(0, 10) : todayISO(), null, { someday: false });
+  let allDay = ev ? ev.all_day : false;
+  const time = h("input", { type: "time", value: ev && !ev.all_day ? ev.start.slice(11, 16) : "09:00", "aria-label": "Start time", step: "300" });
+  const currentLen = ev && !ev.all_day ? minutesBetween(ev.start, ev.end) : 60;
+  const duration = h("select", { "aria-label": "Length" },
+    [...DURATIONS.some(([m]) => m === currentLen) ? [] : [[currentLen, `${currentLen} min`]], ...DURATIONS]
+      .map(([m, label]) => { const o = h("option", { value: m }, label); if (m === currentLen) o.selected = true; return o; }));
+  const location = h("input", { type: "text", value: ev ? ev.location : "", placeholder: "Location (optional)" });
+  const allDayBtn = h("button", { type: "button", class: "chip" + (allDay ? " on" : ""), onclick: () => { allDay = !allDay; paintTime(); } }, "All day");
+  const timeRow = h("div", { class: "row" }, time, duration);
+  const paintTime = () => { allDayBtn.classList.toggle("on", allDay); timeRow.hidden = allDay; };
+  paintTime();
+  const save = h("button", { type: "submit", class: "primary", style: "flex:0 0 auto" }, ev ? "Save" : "Add to calendar");
+
+  return h("form", {
+    class: "editor event-editor stack",
+    onsubmit: async (e) => {
+      e.preventDefault();
+      if (!title.value.trim()) return;
+      save.disabled = true;
+      const body = { title: title.value.trim(), date: day.get(), start_time: allDay ? "" : time.value, duration_minutes: Number(duration.value), location: location.value };
+      try {
+        if (ev) await api(`/api/calendar/events/${encodeURIComponent(ev.id)}?calendar_id=${encodeURIComponent(ev.calendar)}`, { method: "PATCH", body });
+        else await api("/api/calendar/events", { method: "POST", body });
+        toast(ev ? "Event updated" : "Added to your calendar");
+        after();
+      } catch (err) { toast(err.message); save.disabled = false; }
+    },
+  },
+    title, day.el, h("div", { class: "chips" }, allDayBtn), timeRow, location,
+    h("div", { class: "row", style: "align-items:center" },
+      ev && ev.url ? h("a", { href: ev.url, target: "_blank", rel: "noopener", class: "link-btn small", style: "flex:0 0 auto" }, "Open in Google ↗") : null,
+      h("span", { style: "flex:1" }),
+      ev ? h("button", {
+        type: "button", class: "ghost danger", style: "flex:0 0 auto",
+        onclick: async () => {
+          if (!confirm(`Delete "${ev.title}" from your Google Calendar?`)) return;
+          try {
+            await api(`/api/calendar/events/${encodeURIComponent(ev.id)}?calendar_id=${encodeURIComponent(ev.calendar)}`, { method: "DELETE" });
+            toast("Deleted");
+            after();
+          } catch (err) { toast(err.message); }
+        },
+      }, "Delete") : h("button", { type: "button", class: "ghost", style: "flex:0 0 auto", onclick: onCancel }, "Cancel"),
+      save),
+  );
+}
+
+function editableEventList(events, after) {
+  if (!events.length) return h("div", { class: "empty" }, "Nothing scheduled.");
+  return h("ul", { class: "list" }, events.map((e) => {
+    const li = h("li", { class: "event" });
+    li.append(h("button", {
+      class: "event-row", "aria-expanded": "false",
+      onclick: () => {
+        const open = li.querySelector(".editor");
+        if (open) { open.remove(); return; }
+        li.append(eventEditor(e, after));
+      },
+    },
+      h("span", { class: "time" }, e.all_day ? "All day" : clock(e.start)),
+      h("span", { class: "grow" },
+        h("span", { class: "title" }, e.title),
+        (e.location || !e.all_day) ? h("span", { class: "meta" }, [!e.all_day ? `until ${clock(e.end)}` : "", e.location].filter(Boolean).join(" · ")) : null),
+    ));
+    return li;
+  }));
+}
+
+function connectGoogleCard(reconnect) {
+  const g = me.connected.google || {};
+  if (!g.configured) {
+    return h("div", { class: "card" }, h("h2", {}, "Google Calendar"),
+      h("p", { class: "muted small", style: "margin:0" }, "Not set up yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Railway, then come back here to connect."));
+  }
+  return h("div", { class: "card connect" },
+    h("h2", {}, reconnect ? "Reconnect Google Calendar" : "Google Calendar"),
+    h("p", { class: "small", style: "margin:0 0 10px" }, reconnect
+      ? "Google stopped accepting HQ's access, so your events can't load. Connect again to fix it."
+      : "Connect your Google account so HQ can show your events and add or move them for you."),
+    h("a", { class: "primary button-link", href: "/api/google/connect" }, "Connect Google Calendar"),
+    h("p", { class: "muted small", style: "margin:10px 0 0" }, "Do this on your computer the first time. If Google warns the app is unverified, choose Advanced → Go to HQ."),
+  );
+}
+
 let calStart = null;
+let addingEvent = false;
 views.calendar = async (_arg, { load }) => {
   calStart = calStart || todayISO();
   const days = 7;
   const d = await load(`/api/calendar?start=${calStart}&days=${days}`);
-  if (!d.configured) return h("div", { class: "card" }, notConnected("Your calendar", "Add one or more private iCal links to HQ_CALENDAR_ICS_URLS."));
+  const g = me.connected.google || {};
+  if (!d.configured) return connectGoogleCard(false);
   const byDay = {};
   for (let i = 0; i < days; i++) byDay[addDays(calStart, i)] = [];
   for (const e of d.events) {
@@ -408,15 +502,31 @@ views.calendar = async (_arg, { load }) => {
       if (e.start.slice(0, 10) <= day && (endDay > day || (endDay === day && !e.all_day) || e.start.slice(0, 10) === day)) byDay[day].push(e);
     }
   }
+  const refresh = () => { addingEvent = false; render({ fresh: true }); };
+  const list = (evs) => (d.editable ? editableEventList(evs, refresh) : eventList(evs));
   return [
+    d.needs_reconnect ? connectGoogleCard(true) : null,
+    d.editable ? (addingEvent
+      ? h("div", { class: "card" }, h("h2", {}, "New event"), eventEditor(null, refresh, () => { addingEvent = false; render(); }))
+      : h("button", { class: "primary add-event", onclick: () => { addingEvent = true; render(); } }, "+ Add event")) : null,
     h("div", { class: "segmented" },
       h("button", { onclick: () => { calStart = addDays(calStart, -7); render(); } }, "← Prev"),
       h("button", { class: calStart === todayISO() ? "active" : "", onclick: () => { calStart = todayISO(); render(); } }, "This week"),
       h("button", { onclick: () => { calStart = addDays(calStart, 7); render(); } }, "Next →"),
     ),
-    d.errors ? h("div", { class: "error small" }, "One of your calendars didn't load.") : null,
-    h("div", { class: "card" }, Object.entries(byDay).map(([day, evs]) => [h("div", { class: "day-head" + (day === todayISO() ? " now" : "") }, dayLabel(day)), eventList(evs)])),
-    h("p", { class: "muted small" }, "Read-only. Add or change events in Google Calendar."),
+    d.errors && !d.needs_reconnect ? h("div", { class: "error small" }, "Your calendar didn't fully load. Pull down to try again.") : null,
+    h("div", { class: "card" }, Object.entries(byDay).map(([day, evs]) => [h("div", { class: "day-head" + (day === todayISO() ? " now" : "") }, dayLabel(day)), list(evs)])),
+    d.source === "google"
+      ? h("p", { class: "muted small" }, `Google Calendar${g.account ? ` · ${g.account}` : ""}. Tap an event to move or delete it. `,
+        h("button", { class: "link-btn small", onclick: async () => {
+          if (!confirm("Disconnect Google Calendar from HQ?")) return;
+          await api("/api/google/disconnect", { method: "POST" });
+          me.connected.google = { ...g, connected: false, account: "" };
+          me.connected.calendar = false;
+          cache.clear();
+          render({ fresh: true });
+        } }, "Disconnect"))
+      : [g.configured && !g.connected ? connectGoogleCard(false) : null, h("p", { class: "muted small" }, "Read-only calendar link.")],
   ];
 };
 
@@ -820,6 +930,12 @@ async function start() {
   }
   $("#login").hidden = true;
   $("#app").hidden = false;
+  // Coming back from Google's sign-in page.
+  const google = new URLSearchParams(location.search).get("google");
+  if (google) {
+    history.replaceState(null, "", location.pathname + location.hash);
+    toast({ connected: "Google Calendar connected ✓", cancelled: "Google connection cancelled" }[google] || "Couldn't connect Google Calendar. Try again.");
+  }
   fromHash();
   render();
 }
