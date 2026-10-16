@@ -545,6 +545,12 @@ def test_google_oauth_state_is_checked(client, monkeypatch):
         assert "google=connected" in good.headers["location"]
         assert finished == [("c", "http://testserver/oauth/google/callback")]
 
+        # Behind a proxy that terminates HTTPS, the return address must still be https.
+        client.cookies.set(server.OAUTH_COOKIE, state, path="/oauth")
+        client.get(f"/oauth/google/callback?code=c&state={state}", follow_redirects=False,
+                   headers={"x-forwarded-proto": "https", "host": "hq.up.railway.app"})
+        assert finished[-1] == ("c", "https://hq.up.railway.app/oauth/google/callback")
+
         assert not server._valid_state("1.abc.def")
     finally:
         object.__setattr__(hq_settings, "google_client_id", "")

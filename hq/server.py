@@ -276,8 +276,12 @@ OAUTH_COOKIE = "hq_oauth_state"
 
 
 def _redirect_uri(request: Request) -> str:
-    base = hq_settings.public_url or str(request.base_url).rstrip("/")
-    return f"{base}/oauth/google/callback"
+    if hq_settings.public_url:
+        return f"{hq_settings.public_url}/oauth/google/callback"
+    # Behind Railway's proxy the app itself sees plain http, so trust the proxy's note of the real scheme.
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme).split(",")[0].strip()
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
+    return f"{scheme}://{host}/oauth/google/callback"
 
 
 def _make_state() -> str:
